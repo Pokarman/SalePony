@@ -58,7 +58,8 @@ st.markdown("""
 ARCHIVO_INVENTARIO = 'mi_inventario.csv'
 ARCHIVO_HISTORIAL = 'historial_movimientos.csv'
 ARCHIVO_PEDIDOS = 'pedidos_pendientes.csv'
-ARCHIVO_USUARIOS = 'usuarios_seguridad.csv'
+# CAMBIO CLAVE: Nombre nuevo para obligar a regenerar usuarios con contraseñas encriptadas
+ARCHIVO_USUARIOS = 'usuarios_seguridad_v2.csv' 
 ARCHIVO_CONFIG_API = 'config_apis.csv'
 
 # ==========================================
@@ -526,6 +527,7 @@ else:
                 df_c = df_full.copy()
                 grp = df_c['Fecha_Dt'].dt.date if freq=="Día" else df_c['Fecha_Dt'].dt.strftime('%Y-%m')
                 
+                # --- SECCIÓN 1: Flujo de Caja ---
                 st.markdown("### 1. Flujo de Dinero (Entradas vs Salidas)")
                 tab = df_c.groupby(grp)[['Monto_Venta', 'Monto_Gasto']].sum()
                 tab.columns = ['Ventas ($)', 'Compras Stock ($)']
@@ -534,6 +536,7 @@ else:
                 
                 st.divider()
                 
+                # --- SECCIÓN 2: Rentabilidad Real ---
                 st.markdown("### 2. Rentabilidad Real (Ganancia Libre)")
                 
                 c1, c2 = st.columns(2)
