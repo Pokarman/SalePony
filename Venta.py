@@ -191,7 +191,7 @@ def calcular_stats():
 if not st.session_state.sesion_iniciada:
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        st.markdown("<h1 style='text-align: center; color: #C5A059;'>🦄 SalePony Gold</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #C5A059;'>🦄 SalePony V1</h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center;'>Acceso al Sistema Integral</p>", unsafe_allow_html=True)
         with st.form("login"):
             u = st.text_input("Usuario")
@@ -453,3 +453,4 @@ else:
                     st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Pago': '${:,.2f}'}), use_container_width=True)
 
             else: st.info("Sin datos.")
+
