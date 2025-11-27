@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 # ==========================================
 # 1. CONFIGURACIÓN GENERAL Y ESTILO
 # ==========================================
-st.set_page_config(page_title="SalePony", page_icon="🦄", layout="wide")
+st.set_page_config(page_title="SalePony V1", page_icon="🦄", layout="wide")
 
 # Estilos CSS Personalizados (Blanco, Negro y Dorado)
 st.markdown("""
@@ -451,4 +451,5 @@ else:
                     com = ventas.groupby('Usuario')['Monto_Venta'].sum().reset_index()
                     com['Pago'] = com['Monto_Venta'] * 0.03
                     st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Pago': '${:,.2f}'}), use_container_width=True)
+
             else: st.info("Sin datos.")
