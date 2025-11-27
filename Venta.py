@@ -4,12 +4,14 @@ import os
 import time
 import random
 import uuid
+import hashlib
+import re
 from datetime import datetime, timedelta
 
 # ==========================================
 # 1. CONFIGURACIÓN GENERAL Y ESTILO
 # ==========================================
-st.set_page_config(page_title="SalePony", page_icon="🦄", layout="wide")
+st.set_page_config(page_title="SalePony Gold Secure", page_icon="🦄", layout="wide")
 
 # Estilos CSS Personalizados (Adaptables a Modo Oscuro)
 st.markdown("""
@@ -22,8 +24,8 @@ st.markdown("""
     
     /* Métricas Responsivas (Se adaptan al tema claro/oscuro) */
     div[data-testid="stMetric"] {
-        background-color: var(--secondary-background-color); /* Color de fondo inteligente */
-        border-left: 4px solid #C5A059; /* Borde dorado */
+        background-color: var(--secondary-background-color);
+        border-left: 4px solid #C5A059;
         padding: 10px;
         border-radius: 5px;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
@@ -37,17 +39,17 @@ st.markdown("""
         color: var(--text-color) !important;
     }
 
-    /* Botones Primarios (Estilo ) */
+    /* Botones Primarios (Estilo Gold) */
     div.stButton > button:first-child {
-        background-color: #111111; /* Fondo negro */
-        color: #C5A059; /* Texto dorado */
+        background-color: #111111;
+        color: #C5A059;
         border: 1px solid #C5A059;
         font-weight: bold;
     }
     div.stButton > button:hover {
-        background-color: #C5A059; /* Al pasar mouse, fondo dorado */
+        background-color: #C5A059;
         border-color: #FFFFFF;
-        color: #000000; /* Texto negro */
+        color: #000000;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -60,29 +62,50 @@ ARCHIVO_USUARIOS = 'usuarios_seguridad.csv'
 ARCHIVO_CONFIG_API = 'config_apis.csv'
 
 # ==========================================
-# 2. GESTIÓN DE SEGURIDAD Y USUARIOS
+# 2. GESTIÓN DE SEGURIDAD (NUEVO)
 # ==========================================
 
+def hash_password(password):
+    """(Mejora 1) Convierte contraseña a Hash SHA-256 para no guardarla en texto plano."""
+    return hashlib.sha256(str.encode(password)).hexdigest()
+
+def sanitizar_texto(texto):
+    """(Mejora 4) Limpia entradas de caracteres peligrosos para CSV."""
+    if isinstance(texto, str):
+        # Elimina comas, puntos y coma, y saltos de línea que rompen CSVs
+        return re.sub(r'[;,\n\r]', ' ', texto).strip()
+    return texto
+
 def cargar_usuarios():
+    """Carga usuarios. Si no existen, crea default con contraseñas HASHED."""
     if not os.path.exists(ARCHIVO_USUARIOS):
         usuarios_defecto = [
-            {'Usuario': 'admin', 'Clave': 'admin123', 'Rol': 'Administrador', 'Nombre': 'CEO SalePony'},
-            {'Usuario': 'operador', 'Clave': 'op123', 'Rol': 'Vendedor', 'Nombre': 'Operador Logístico'}
+            {'Usuario': 'admin', 'Clave': hash_password('admin123'), 'Rol': 'Administrador', 'Nombre': 'CEO SalePony'},
+            {'Usuario': 'operador', 'Clave': hash_password('op123'), 'Rol': 'Vendedor', 'Nombre': 'Operador Logístico'}
         ]
         df = pd.DataFrame(usuarios_defecto)
         df.to_csv(ARCHIVO_USUARIOS, index=False)
         return df
     return pd.read_csv(ARCHIVO_USUARIOS)
 
-def verificar_login(usuario, clave):
+def verificar_login(usuario, clave_plana):
+    """Verifica credenciales comparando HASHES."""
     df = cargar_usuarios()
-    found = df[(df['Usuario'] == usuario) & (df['Clave'] == clave)]
-    return found.iloc[0] if not found.empty else None
+    # Buscamos el usuario
+    user_match = df[df['Usuario'] == usuario]
+    
+    if not user_match.empty:
+        stored_hash = user_match.iloc[0]['Clave']
+        input_hash = hash_password(clave_plana)
+        if stored_hash == input_hash:
+            return user_match.iloc[0]
+    return None
 
 if 'sesion_iniciada' not in st.session_state:
     st.session_state.sesion_iniciada = False
     st.session_state.rol_usuario = None
     st.session_state.nombre_usuario = None
+    st.session_state.usuario_id = None # Para re-auth
     st.session_state.ultimo_ticket = ""
 
 # ==========================================
@@ -91,7 +114,6 @@ if 'sesion_iniciada' not in st.session_state:
 
 @st.cache_data(show_spinner=False)
 def cargar_csv(archivo, columnas):
-    """Carga robusta de CSV."""
     if not os.path.exists(archivo): return pd.DataFrame(columns=columnas)
     try:
         df = pd.read_csv(archivo)
@@ -103,7 +125,6 @@ def cargar_csv(archivo, columnas):
     except: return pd.DataFrame(columns=columnas)
 
 def inicializar_catalogo_accesorios():
-    """Genera el catálogo inicial de Best Sellers si está vacío."""
     if not os.path.exists(ARCHIVO_INVENTARIO):
         datos = [
             {'SKU': 'IP15-CASE-CLR', 'Categoria': 'Fundas', 'Modelo': 'Funda iPhone 15 Transparente Anti-Shock', 'Tipo': 'Importado', 'Cantidad': 20, 'Stock_Minimo': 5, 'Costo_Unitario': 35.0, 'Precio_Venta': 199.0, 'Link_AliExpress': 'https://aliexpress.com', 'Precio_ML': 249.0, 'Precio_Amazon': 229.0},
@@ -169,12 +190,11 @@ TOTAL:             ${total:,.2f}
 """
 
 def sincronizar_marketplaces(df_inv):
-    """Simula la conexión a APIs de ML y Amazon."""
     nuevos = []
     msgs = ["🔵 Conectando Mercado Libre...", "🟠 Conectando Amazon..."]
     time.sleep(1.5)
     
-    if not df_inv.empty and random.random() > 0.6: # 40% chance de venta
+    if not df_inv.empty and random.random() > 0.6: 
         stock = df_inv[df_inv['Cantidad'] > 0]
         if not stock.empty:
             prod = stock.sample(1).iloc[0]
@@ -192,7 +212,7 @@ def calcular_stats():
     if df.empty: return None, None, pd.DataFrame()
     if 'Monto_Gasto' not in df.columns: df['Monto_Gasto'] = 0.0
     df['Fecha_Dt'] = pd.to_datetime(df['Fecha'])
-    return df, None, df # Simplificado para evitar redundancia
+    return df, None, df
 
 # ==========================================
 # 4. INTERFAZ GRÁFICA
@@ -202,8 +222,8 @@ def calcular_stats():
 if not st.session_state.sesion_iniciada:
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        st.markdown("<h1 style='text-align: center; color: #C5A059;'>🦄 SalePony System</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center;'>Acceso al Sistema Integral</p>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #C5A059;'>🦄 SalePony Gold</h1>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center;'>Acceso Seguro</p>", unsafe_allow_html=True)
         with st.form("login"):
             u = st.text_input("Usuario")
             p = st.text_input("Contraseña", type="password")
@@ -213,6 +233,7 @@ if not st.session_state.sesion_iniciada:
                     st.session_state.sesion_iniciada = True
                     st.session_state.rol_usuario = val['Rol']
                     st.session_state.nombre_usuario = val['Nombre']
+                    st.session_state.usuario_id = val['Usuario']
                     st.rerun()
                 else: st.error("Acceso Denegado")
         st.caption("Admin: admin/admin123 | Op: operador/op123")
@@ -234,7 +255,7 @@ else:
         venta = st.number_input("Precio Venta ($)", 0.0, step=10.0)
         if st.button("Calcular"):
             total = costo + envio
-            comision = venta * 0.15 # ML fee aprox
+            comision = venta * 0.15 
             ganancia = venta - total - comision
             if ganancia > 0: st.success(f"Ganancia: ${ganancia:,.2f}")
             else: st.error(f"Pérdida: ${ganancia:,.2f}")
@@ -255,12 +276,18 @@ else:
             elif diff > 0: st.warning(f"Sobra ${diff}")
             else: st.error(f"Falta ${abs(diff)}")
 
-    # 3. Configuración API (Solo Admin)
+    # 3. Configuración API (Solo Admin) - Mejora 2: Env Vars
     if st.session_state.rol_usuario == "Administrador":
         with st.sidebar.expander("🔌 Conexiones API"):
-            st.text_input("Mercado Libre ID", type="password")
-            st.text_input("Amazon Token", type="password")
-            st.caption("Tokens guardados en sesión segura.")
+            # Intenta cargar de variables de entorno primero
+            ml_token_env = os.environ.get("ML_TOKEN", "")
+            amz_token_env = os.environ.get("AMZ_TOKEN", "")
+            
+            st.text_input("Mercado Libre ID", value=ml_token_env if ml_token_env else "", type="password", placeholder="Detectado de ENV" if ml_token_env else "")
+            st.text_input("Amazon Token", value=amz_token_env if amz_token_env else "", type="password", placeholder="Detectado de ENV" if amz_token_env else "")
+            
+            if ml_token_env: st.caption("✅ Tokens cargados desde Variables de Entorno")
+            else: st.caption("⚠️ Usando configuración manual")
 
     if st.sidebar.button("🔄 Sincronizar Marketplaces", type="primary"):
         with st.spinner("Conectando..."):
@@ -286,10 +313,23 @@ else:
     # --- BOTÓN DISCRETO PARA BORRAR LOGS (SOLO ADMIN) ---
     if st.session_state.rol_usuario == "Administrador":
         st.sidebar.markdown("---")
-        with st.sidebar.expander("⚠️ Borrar Logs", expanded=False):
+        with st.sidebar.expander("⚠️ Zona de Peligro", expanded=False):
             st.caption("Acciones irreversibles")
-            confirmar_reset = st.checkbox("Confirmar borrado de logs")
-            if st.button("🗑️ Limpiar Sistema (Logs)", disabled=not confirmar_reset, type="primary"):
+            
+            # Mejora 3: Re-autenticación
+            password_confirm = st.text_input("Contraseña de Admin para confirmar:", type="password")
+            confirmar_reset = st.checkbox("Entiendo que esto borra todo")
+            
+            btn_disabled = True
+            if password_confirm and confirmar_reset:
+                # Verificamos que la contraseña ingresada coincida con la del usuario actual
+                user_data = verificar_login(st.session_state.usuario_id, password_confirm)
+                if user_data is not None:
+                    btn_disabled = False
+                else:
+                    st.error("Contraseña incorrecta")
+
+            if st.button("🗑️ Limpiar Sistema (Logs)", disabled=btn_disabled, type="primary"):
                 if os.path.exists(ARCHIVO_HISTORIAL): os.remove(ARCHIVO_HISTORIAL)
                 if os.path.exists(ARCHIVO_PEDIDOS): os.remove(ARCHIVO_PEDIDOS)
                 st.cache_data.clear()
@@ -298,7 +338,7 @@ else:
                 st.rerun()
 
     # --- DASHBOARD ---
-    st.title("🦄 SalePony Sate Edition")
+    st.title("🦄 SalePony Gold Edition")
     
     # KPIs
     pend = df_ped[df_ped['Estado']=='Pendiente'].shape[0]
@@ -357,7 +397,8 @@ else:
             sel = None
             
             if scan:
-                f = df_inv[df_inv['SKU'].astype(str) == scan]
+                scan_clean = sanitizar_texto(scan) # Mejora 4: Sanitización
+                f = df_inv[df_inv['SKU'].astype(str) == scan_clean]
                 if not f.empty:
                     sel = f.iloc[0]
                     st.success(f"Producto: {sel['Modelo']}")
@@ -373,7 +414,7 @@ else:
                 if sel is not None:
                     idx = df_inv[df_inv['SKU'] == sel['SKU']].index[0]
                     item = df_inv.iloc[idx]
-                    stock_real_actual = int(item['Cantidad']) # Candado de stock
+                    stock_real_actual = int(item['Cantidad'])
                     
                     st.markdown(f"**{item['Modelo']}** | Disp: {item['Cantidad']}")
                     cq, cp = st.columns(2)
@@ -382,7 +423,6 @@ else:
                     cp.metric("Total", f"${tot:,.2f}")
                     
                     if st.button("COBRAR", type="primary", use_container_width=True):
-                        # --- VERIFICACIÓN DE SEGURIDAD FINAL ---
                         if q > stock_real_actual:
                             st.error(f"⛔ ERROR: Intentas vender {q} pero solo hay {stock_real_actual} en existencia. Actualiza la página.")
                         else:
@@ -447,6 +487,9 @@ else:
                 if st.form_submit_button("Guardar"):
                     if not f_mod: st.error("Nombre requerido")
                     else:
+                        f_mod = sanitizar_texto(f_mod) # Mejora 4
+                        f_sku = sanitizar_texto(f_sku) # Mejora 4
+                        
                         if not f_sku: f_sku = f"ACC-{str(uuid.uuid4())[:6].upper()}"
                         new_d = {'SKU': f_sku, 'Categoria': f_cat, 'Modelo': f_mod, 'Tipo': 'Imp', 'Cantidad': f_can, 'Stock_Minimo': f_min, 'Costo_Unitario': f_cos, 'Precio_Venta': f_pre, 'Link_AliExpress': f_lnk, 'Precio_ML': f_ml, 'Precio_Amazon': f_amz}
                         
@@ -469,7 +512,6 @@ else:
         with t_rep:
             st.subheader("Inteligencia de Negocio")
             
-            # Introducción educativa para finanzas
             with st.expander("📚 Ayuda: ¿Cómo entender mis números?"):
                 st.markdown("""
                 **1. Flujo de Caja (Dinero Real):** Muestra si entró o salió dinero de tu cuenta hoy.  
@@ -484,7 +526,6 @@ else:
                 df_c = df_full.copy()
                 grp = df_c['Fecha_Dt'].dt.date if freq=="Día" else df_c['Fecha_Dt'].dt.strftime('%Y-%m')
                 
-                # --- SECCIÓN 1: Flujo de Caja ---
                 st.markdown("### 1. Flujo de Dinero (Entradas vs Salidas)")
                 tab = df_c.groupby(grp)[['Monto_Venta', 'Monto_Gasto']].sum()
                 tab.columns = ['Ventas ($)', 'Compras Stock ($)']
@@ -493,27 +534,21 @@ else:
                 
                 st.divider()
                 
-                # --- SECCIÓN 2: Rentabilidad Real ---
                 st.markdown("### 2. Rentabilidad Real (Ganancia Libre)")
                 
-                # Inputs interactivos para calcular ganancia neta
                 c1, c2 = st.columns(2)
                 imp_pct = c1.number_input("Impuestos (%)", value=16.0) / 100
                 com_pct = c2.number_input("Comisión Plataforma (%)", value=15.0) / 100
                 
                 ventas_solo = df_c[df_c['Accion'].str.contains('VENTA')]
                 if not ventas_solo.empty:
-                    # Calculamos totales
                     total_vendido = ventas_solo['Monto_Venta'].sum()
                     costo_vendido = ventas_solo['Costo_Venta'].sum()
-                    
-                    # Matemática financiera
                     ganancia_bruta = total_vendido - costo_vendido
                     gastos_imuestos = total_vendido * imp_pct
                     gastos_comis = total_vendido * com_pct
                     ganancia_neta = ganancia_bruta - gastos_imuestos - gastos_comis
                     
-                    # Mostrar resultados claros
                     m1, m2, m3 = st.columns(3)
                     m1.metric("Venta Total", f"${total_vendido:,.2f}")
                     m2.metric("Costo Mercancía", f"-${costo_vendido:,.2f}")
@@ -535,5 +570,3 @@ else:
                     com['Pago (3%)'] = com['Monto_Venta'] * 0.03
                     st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Pago (3%)': '${:,.2f}'}), use_container_width=True)
             else: st.info("Sin datos.")
-
-
