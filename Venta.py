@@ -6,6 +6,9 @@ import random
 import uuid
 import hashlib
 import re
+import smtplib 
+from email.mime.text import MIMEText 
+from email.mime.multipart import MIMEMultipart 
 from datetime import datetime, timedelta
 
 # ==========================================
@@ -13,7 +16,7 @@ from datetime import datetime, timedelta
 # ==========================================
 st.set_page_config(page_title="SalePony Gold Secure", page_icon="🦄", layout="wide")
 
-# Estilos CSS Personalizados (Adaptables a Modo Oscuro)
+# Estilos CSS Personalizados (Adaptables a Modo Oscuro/Claro)
 st.markdown("""
     <style>
     /* Títulos Principales en Dorado */
@@ -58,12 +61,11 @@ st.markdown("""
 ARCHIVO_INVENTARIO = 'mi_inventario.csv'
 ARCHIVO_HISTORIAL = 'historial_movimientos.csv'
 ARCHIVO_PEDIDOS = 'pedidos_pendientes.csv'
-# CAMBIO CLAVE: Nombre nuevo para obligar a regenerar usuarios con contraseñas encriptadas
-ARCHIVO_USUARIOS = 'usuarios_seguridad_v2.csv' 
+ARCHIVO_USUARIOS = 'usuarios_seguridad_v3.csv' 
 ARCHIVO_CONFIG_API = 'config_apis.csv'
 
 # ==========================================
-# 2. GESTIÓN DE SEGURIDAD (NUEVO)
+# 2. GESTIÓN DE SEGURIDAD (HASHING & SANITIZACIÓN)
 # ==========================================
 
 def hash_password(password):
@@ -73,7 +75,6 @@ def hash_password(password):
 def sanitizar_texto(texto):
     """(Mejora 4) Limpia entradas de caracteres peligrosos para CSV."""
     if isinstance(texto, str):
-        # Elimina comas, puntos y coma, y saltos de línea que rompen CSVs
         return re.sub(r'[;,\n\r]', ' ', texto).strip()
     return texto
 
@@ -92,7 +93,6 @@ def cargar_usuarios():
 def verificar_login(usuario, clave_plana):
     """Verifica credenciales comparando HASHES."""
     df = cargar_usuarios()
-    # Buscamos el usuario
     user_match = df[df['Usuario'] == usuario]
     
     if not user_match.empty:
@@ -106,12 +106,48 @@ if 'sesion_iniciada' not in st.session_state:
     st.session_state.sesion_iniciada = False
     st.session_state.rol_usuario = None
     st.session_state.nombre_usuario = None
-    st.session_state.usuario_id = None # Para re-auth
+    st.session_state.usuario_id = None
     st.session_state.ultimo_ticket = ""
 
 # ==========================================
-# 3. LÓGICA DE DATOS Y NEGOCIO
+# 3. LÓGICA DE NEGOCIO Y CORREO
 # ==========================================
+
+def enviar_correo_soporte(mensaje_error):
+    """Envía reporte de error al correo del administrador."""
+    sender_email = "alanbdb64@gmail.com"
+    sender_password = "dxah wqco wygs bjgk".replace(" ", "") # Tu clave de app ya integrada
+    receiver_email = "alanbdb64@gmail.com"
+
+    msg = MIMEMultipart()
+    msg['From'] = "SalePony System"
+    msg['To'] = receiver_email
+    msg['Subject'] = f"🚨 Reporte SalePony - {datetime.now().strftime('%d/%m %H:%M')}"
+
+    cuerpo = f"""
+    NUEVO REPORTE DE INCIDENCIA
+    --------------------------------------
+    Usuario: {st.session_state.nombre_usuario} ({st.session_state.rol_usuario})
+    Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    
+    DETALLE DEL REPORTE:
+    {mensaje_error}
+    --------------------------------------
+    Sistema SalePony Gold
+    """
+    msg.attach(MIMEText(cuerpo, 'plain'))
+
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        text = msg.as_string()
+        server.sendmail(sender_email, receiver_email, text)
+        server.quit()
+        return True
+    except Exception as e:
+        st.error(f"Error de conexión con Gmail: {e}")
+        return False
 
 @st.cache_data(show_spinner=False)
 def cargar_csv(archivo, columnas):
@@ -277,18 +313,15 @@ else:
             elif diff > 0: st.warning(f"Sobra ${diff}")
             else: st.error(f"Falta ${abs(diff)}")
 
-    # 3. Configuración API (Solo Admin) - Mejora 2: Env Vars
+    # 3. Configuración API (Solo Admin)
     if st.session_state.rol_usuario == "Administrador":
         with st.sidebar.expander("🔌 Conexiones API"):
-            # Intenta cargar de variables de entorno primero
             ml_token_env = os.environ.get("ML_TOKEN", "")
             amz_token_env = os.environ.get("AMZ_TOKEN", "")
-            
             st.text_input("Mercado Libre ID", value=ml_token_env if ml_token_env else "", type="password", placeholder="Detectado de ENV" if ml_token_env else "")
             st.text_input("Amazon Token", value=amz_token_env if amz_token_env else "", type="password", placeholder="Detectado de ENV" if amz_token_env else "")
-            
-            if ml_token_env: st.caption("✅ Tokens cargados desde Variables de Entorno")
-            else: st.caption("⚠️ Usando configuración manual")
+            if ml_token_env: st.caption("✅ Tokens cargados")
+            else: st.caption("⚠️ Configuración manual")
 
     if st.sidebar.button("🔄 Sincronizar Marketplaces", type="primary"):
         with st.spinner("Conectando..."):
@@ -307,23 +340,33 @@ else:
                 time.sleep(1)
                 st.rerun()
 
+    # --- AGREGADO: BOTÓN SOPORTE TÉCNICO (CORREO) ---
+    st.sidebar.markdown("---")
+    with st.sidebar.expander("📧 Soporte Técnico", expanded=False):
+        st.caption("Reporta errores directamente al desarrollador.")
+        msg_error = st.text_area("Describe el problema:")
+        if st.button("Enviar Reporte"):
+            if msg_error:
+                with st.spinner("Enviando correo..."):
+                    exito = enviar_correo_soporte(msg_error)
+                    if exito:
+                        st.success("¡Reporte enviado exitosamente!")
+            else:
+                st.warning("Escribe algo antes de enviar.")
+
     if st.sidebar.button("Salir"):
         st.session_state.sesion_iniciada = False
         st.rerun()
 
     # --- BOTÓN DISCRETO PARA BORRAR LOGS (SOLO ADMIN) ---
     if st.session_state.rol_usuario == "Administrador":
-        st.sidebar.markdown("---")
         with st.sidebar.expander("⚠️ Zona de Peligro", expanded=False):
             st.caption("Acciones irreversibles")
-            
-            # Mejora 3: Re-autenticación
             password_confirm = st.text_input("Contraseña de Admin para confirmar:", type="password")
             confirmar_reset = st.checkbox("Entiendo que esto borra todo")
             
             btn_disabled = True
             if password_confirm and confirmar_reset:
-                # Verificamos que la contraseña ingresada coincida con la del usuario actual
                 user_data = verificar_login(st.session_state.usuario_id, password_confirm)
                 if user_data is not None:
                     btn_disabled = False
@@ -398,7 +441,7 @@ else:
             sel = None
             
             if scan:
-                scan_clean = sanitizar_texto(scan) # Mejora 4: Sanitización
+                scan_clean = sanitizar_texto(scan) 
                 f = df_inv[df_inv['SKU'].astype(str) == scan_clean]
                 if not f.empty:
                     sel = f.iloc[0]
@@ -488,8 +531,8 @@ else:
                 if st.form_submit_button("Guardar"):
                     if not f_mod: st.error("Nombre requerido")
                     else:
-                        f_mod = sanitizar_texto(f_mod) # Mejora 4
-                        f_sku = sanitizar_texto(f_sku) # Mejora 4
+                        f_mod = sanitizar_texto(f_mod) 
+                        f_sku = sanitizar_texto(f_sku) 
                         
                         if not f_sku: f_sku = f"ACC-{str(uuid.uuid4())[:6].upper()}"
                         new_d = {'SKU': f_sku, 'Categoria': f_cat, 'Modelo': f_mod, 'Tipo': 'Imp', 'Cantidad': f_can, 'Stock_Minimo': f_min, 'Costo_Unitario': f_cos, 'Precio_Venta': f_pre, 'Link_AliExpress': f_lnk, 'Precio_ML': f_ml, 'Precio_Amazon': f_amz}
