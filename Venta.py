@@ -286,7 +286,7 @@ else:
     # --- BOTÓN DISCRETO PARA BORRAR LOGS (SOLO ADMIN) ---
     if st.session_state.rol_usuario == "Administrador":
         st.sidebar.markdown("---")
-        with st.sidebar.expander("⚠️ Zona de Peligro", expanded=False):
+        with st.sidebar.expander("⚠️", expanded=False):
             st.caption("Acciones irreversibles")
             confirmar_reset = st.checkbox("Confirmar borrado de logs")
             if st.button("🗑️ Limpiar Sistema (Logs)", disabled=not confirmar_reset, type="primary"):
@@ -535,3 +535,4 @@ else:
                     com['Pago (3%)'] = com['Monto_Venta'] * 0.03
                     st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Pago (3%)': '${:,.2f}'}), use_container_width=True)
             else: st.info("Sin datos.")
+
