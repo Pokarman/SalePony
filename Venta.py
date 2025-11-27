@@ -286,7 +286,7 @@ else:
     # --- BOTÓN DISCRETO PARA BORRAR LOGS (SOLO ADMIN) ---
     if st.session_state.rol_usuario == "Administrador":
         st.sidebar.markdown("---")
-        with st.sidebar.expander("⚠️", expanded=False):
+        with st.sidebar.expander("⚠️ Borrar Logs", expanded=False):
             st.caption("Acciones irreversibles")
             confirmar_reset = st.checkbox("Confirmar borrado de logs")
             if st.button("🗑️ Limpiar Sistema (Logs)", disabled=not confirmar_reset, type="primary"):
