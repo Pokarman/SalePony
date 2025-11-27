@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 # ==========================================
 # 1. CONFIGURACIÓN GENERAL Y ESTILO
 # ==========================================
-st.set_page_config(page_title="SalePony V1", page_icon="🦄", layout="wide")
+st.set_page_config(page_title="SalePony Gold", page_icon="🦄", layout="wide")
 
-# Estilos CSS Personalizados (Blanco, Negro y Dorado)
+# Estilos CSS Personalizados (Adaptables a Modo Oscuro)
 st.markdown("""
     <style>
     /* Títulos Principales en Dorado */
@@ -19,24 +19,35 @@ st.markdown("""
         color: #C5A059 !important; /* Dorado elegante */
         font-family: 'Helvetica Neue', sans-serif;
     }
-    /* Métricas con borde dorado */
+    
+    /* Métricas Responsivas (Se adaptan al tema claro/oscuro) */
     div[data-testid="stMetric"] {
-        background-color: #f9f9f9;
-        border-left: 4px solid #C5A059;
+        background-color: var(--secondary-background-color); /* Color de fondo inteligente */
+        border-left: 4px solid #C5A059; /* Borde dorado */
         padding: 10px;
         border-radius: 5px;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
     }
-    /* Botones Primarios (Negro con texto Dorado) */
+    
+    /* Texto de métricas visible en ambos modos */
+    div[data-testid="stMetricLabel"] {
+        color: var(--text-color) !important;
+    }
+    div[data-testid="stMetricValue"] {
+        color: var(--text-color) !important;
+    }
+
+    /* Botones Primarios (Estilo Gold) */
     div.stButton > button:first-child {
-        background-color: #111111;
-        color: #C5A059;
+        background-color: #111111; /* Fondo negro */
+        color: #C5A059; /* Texto dorado */
         border: 1px solid #C5A059;
+        font-weight: bold;
     }
     div.stButton > button:hover {
-        background-color: #333333;
+        background-color: #C5A059; /* Al pasar mouse, fondo dorado */
         border-color: #FFFFFF;
-        color: #FFFFFF;
+        color: #000000; /* Texto negro */
     }
     </style>
     """, unsafe_allow_html=True)
@@ -191,7 +202,7 @@ def calcular_stats():
 if not st.session_state.sesion_iniciada:
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        st.markdown("<h1 style='text-align: center; color: #C5A059;'>🦄 SalePony V1</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #C5A059;'>🦄 SalePony Gold</h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center;'>Acceso al Sistema Integral</p>", unsafe_allow_html=True)
         with st.form("login"):
             u = st.text_input("Usuario")
@@ -273,7 +284,7 @@ else:
         st.rerun()
 
     # --- DASHBOARD ---
-    st.title("🦄 SalePony Beta Edition")
+    st.title("🦄 SalePony Gold Edition")
     
     # KPIs
     pend = df_ped[df_ped['Estado']=='Pendiente'].shape[0]
@@ -348,20 +359,26 @@ else:
                 if sel is not None:
                     idx = df_inv[df_inv['SKU'] == sel['SKU']].index[0]
                     item = df_inv.iloc[idx]
+                    stock_real_actual = int(item['Cantidad']) # Candado de stock
+                    
                     st.markdown(f"**{item['Modelo']}** | Disp: {item['Cantidad']}")
                     cq, cp = st.columns(2)
-                    q = cq.number_input("Cantidad", 1, int(item['Cantidad']), 1)
+                    q = cq.number_input("Cantidad", 1, max(1, stock_real_actual), 1)
                     tot = item['Precio_Venta'] * q
                     cp.metric("Total", f"${tot:,.2f}")
                     
                     if st.button("COBRAR", type="primary", use_container_width=True):
-                        df_inv.at[idx, 'Cantidad'] -= q
-                        guardar_df(df_inv, ARCHIVO_INVENTARIO)
-                        registrar_historial("VENTA", item['SKU'], item['Modelo'], q, item['Precio_Venta'], item['Costo_Unitario'], "Mostrador")
-                        st.session_state.ultimo_ticket = generar_ticket(item['SKU'], item['Modelo'], q, tot, st.session_state.nombre_usuario)
-                        st.success("Venta OK")
-                        time.sleep(0.5)
-                        st.rerun()
+                        # --- VERIFICACIÓN DE SEGURIDAD FINAL ---
+                        if q > stock_real_actual:
+                            st.error(f"⛔ ERROR: Intentas vender {q} pero solo hay {stock_real_actual} en existencia. Actualiza la página.")
+                        else:
+                            df_inv.at[idx, 'Cantidad'] -= q
+                            guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                            registrar_historial("VENTA", item['SKU'], item['Modelo'], q, item['Precio_Venta'], item['Costo_Unitario'], "Mostrador")
+                            st.session_state.ultimo_ticket = generar_ticket(item['SKU'], item['Modelo'], q, tot, st.session_state.nombre_usuario)
+                            st.success("Venta OK")
+                            time.sleep(0.5)
+                            st.rerun()
         
         with c_der:
             st.markdown("🧾 **Ticket**")
@@ -451,6 +468,4 @@ else:
                     com = ventas.groupby('Usuario')['Monto_Venta'].sum().reset_index()
                     com['Pago'] = com['Monto_Venta'] * 0.03
                     st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Pago': '${:,.2f}'}), use_container_width=True)
-
             else: st.info("Sin datos.")
-
