@@ -61,7 +61,6 @@ st.markdown("""
 ARCHIVO_INVENTARIO = 'mi_inventario.csv'
 ARCHIVO_HISTORIAL = 'historial_movimientos.csv'
 ARCHIVO_PEDIDOS = 'pedidos_pendientes.csv'
-# Usamos v3 para forzar la creación de un archivo nuevo con contraseñas encriptadas
 ARCHIVO_USUARIOS = 'usuarios_seguridad_v3.csv' 
 ARCHIVO_CONFIG_API = 'config_apis.csv'
 
@@ -109,6 +108,9 @@ if 'sesion_iniciada' not in st.session_state:
     st.session_state.nombre_usuario = None
     st.session_state.usuario_id = None
     st.session_state.ultimo_ticket = ""
+    # CORRECCIÓN: Inicializamos un contador para resetear inputs sin errores
+    if 'contador_soporte' not in st.session_state:
+        st.session_state.contador_soporte = 0
 
 # ==========================================
 # 3. LÓGICA DE NEGOCIO Y CORREO
@@ -117,7 +119,7 @@ if 'sesion_iniciada' not in st.session_state:
 def enviar_correo_soporte(mensaje_error):
     """Envía reporte de error al correo del administrador."""
     sender_email = "alanbdb64@gmail.com"
-    sender_password = "dxah wqco wygs bjgk".replace(" ", "") # Tu clave de app
+    sender_password = "dxah wqco wygs bjgk".replace(" ", "")
     receiver_email = "alanbdb64@gmail.com"
 
     msg = MIMEMultipart()
@@ -345,16 +347,18 @@ else:
     st.sidebar.markdown("---")
     with st.sidebar.expander("📧 Soporte Técnico", expanded=False):
         st.caption("Reporta errores directamente al desarrollador.")
-        # Usamos key para identificar el widget y limpiarlo
-        msg_error = st.text_area("Describe el problema:", key="txt_soporte")
+        # CORRECCIÓN: Key dinámica para permitir limpieza automática sin errores
+        key_dinamica = f"txt_soporte_{st.session_state.contador_soporte}"
+        msg_error = st.text_area("Describe el problema:", key=key_dinamica)
+        
         if st.button("Enviar Reporte"):
             if msg_error:
                 with st.spinner("Enviando correo..."):
                     exito = enviar_correo_soporte(msg_error)
                     if exito:
                         st.success("¡Reporte enviado exitosamente!")
-                        # Limpiar el input
-                        st.session_state.txt_soporte = ""
+                        # CORRECCIÓN: Incrementamos contador para 'resetear' el widget en el siguiente rerun
+                        st.session_state.contador_soporte += 1
                         time.sleep(1.5)
                         st.rerun()
             else:
