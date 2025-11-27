@@ -453,19 +453,71 @@ else:
     # 5. REPORTES (Solo Admin)
     if t_rep:
         with t_rep:
-            st.subheader("Finanzas")
+            st.subheader("Inteligencia de Negocio")
+            
+            # Introducción educativa para finanzas
+            with st.expander("📚 Ayuda: ¿Cómo entender mis números?"):
+                st.markdown("""
+                **1. Flujo de Caja (Dinero Real):** Muestra si entró o salió dinero de tu cuenta hoy.  
+                *Ingresos (Ventas) - Egresos (Compras de Mercancía).*
+                
+                **2. Rentabilidad (Ganancia del Producto):** Muestra si estás ganando dinero en cada venta, ignorando si compraste stock hoy o el mes pasado.  
+                *Precio Venta - Costo Producto - Impuestos - Comisiones.*
+                """)
+
             freq = st.radio("Agrupar:", ["Día", "Mes"], horizontal=True)
             if df_full is not None and not df_full.empty:
                 df_c = df_full.copy()
                 grp = df_c['Fecha_Dt'].dt.date if freq=="Día" else df_c['Fecha_Dt'].dt.strftime('%Y-%m')
+                
+                # --- SECCIÓN 1: Flujo de Caja ---
+                st.markdown("### 1. Flujo de Dinero (Entradas vs Salidas)")
                 tab = df_c.groupby(grp)[['Monto_Venta', 'Monto_Gasto']].sum()
-                tab['Neto'] = tab['Monto_Venta'] - tab['Monto_Gasto']
+                tab.columns = ['Ventas ($)', 'Compras Stock ($)']
+                tab['Flujo Neto'] = tab['Ventas ($)'] - tab['Compras Stock ($)']
                 st.dataframe(tab.style.format("${:,.2f}"), use_container_width=True)
                 
-                st.markdown("##### Comisiones (3%)")
-                ventas = df_c[df_c['Accion'].str.contains('VENTA')]
-                if not ventas.empty:
-                    com = ventas.groupby('Usuario')['Monto_Venta'].sum().reset_index()
-                    com['Pago'] = com['Monto_Venta'] * 0.03
-                    st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Pago': '${:,.2f}'}), use_container_width=True)
+                st.divider()
+                
+                # --- SECCIÓN 2: Rentabilidad Real ---
+                st.markdown("### 2. Rentabilidad Real (Ganancia Libre)")
+                
+                # Inputs interactivos para calcular ganancia neta
+                c1, c2 = st.columns(2)
+                imp_pct = c1.number_input("Impuestos (%)", value=16.0) / 100
+                com_pct = c2.number_input("Comisión Plataforma (%)", value=15.0) / 100
+                
+                ventas_solo = df_c[df_c['Accion'].str.contains('VENTA')]
+                if not ventas_solo.empty:
+                    # Calculamos totales
+                    total_vendido = ventas_solo['Monto_Venta'].sum()
+                    costo_vendido = ventas_solo['Costo_Venta'].sum()
+                    
+                    # Matemática financiera
+                    ganancia_bruta = total_vendido - costo_vendido
+                    gastos_imuestos = total_vendido * imp_pct
+                    gastos_comis = total_vendido * com_pct
+                    ganancia_neta = ganancia_bruta - gastos_imuestos - gastos_comis
+                    
+                    # Mostrar resultados claros
+                    m1, m2, m3 = st.columns(3)
+                    m1.metric("Venta Total", f"${total_vendido:,.2f}")
+                    m2.metric("Costo Mercancía", f"-${costo_vendido:,.2f}")
+                    m3.metric("Utilidad Bruta", f"${ganancia_bruta:,.2f}")
+                    
+                    m4, m5, m6 = st.columns(3)
+                    m4.metric("Impuestos/Comis.", f"-${gastos_imuestos + gastos_comis:,.2f}")
+                    m5.metric("💰 Ganancia LIBRE", f"${ganancia_neta:,.2f}", delta="Tu dinero real")
+                    if total_vendido > 0:
+                        margen = (ganancia_neta / total_vendido) * 100
+                        m6.metric("Margen Neto", f"{margen:.1f}%")
+                else:
+                    st.info("No hay ventas para calcular rentabilidad.")
+
+                st.divider()
+                st.markdown("##### Comisiones Empleados")
+                if not ventas_solo.empty:
+                    com = ventas_solo.groupby('Usuario')['Monto_Venta'].sum().reset_index()
+                    com['Pago (3%)'] = com['Monto_Venta'] * 0.03
+                    st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Pago (3%)': '${:,.2f}'}), use_container_width=True)
             else: st.info("Sin datos.")
