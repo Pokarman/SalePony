@@ -61,6 +61,7 @@ st.markdown("""
 ARCHIVO_INVENTARIO = 'mi_inventario.csv'
 ARCHIVO_HISTORIAL = 'historial_movimientos.csv'
 ARCHIVO_PEDIDOS = 'pedidos_pendientes.csv'
+# Usamos v3 para forzar la creación de un archivo nuevo con contraseñas encriptadas
 ARCHIVO_USUARIOS = 'usuarios_seguridad_v3.csv' 
 ARCHIVO_CONFIG_API = 'config_apis.csv'
 
@@ -69,17 +70,17 @@ ARCHIVO_CONFIG_API = 'config_apis.csv'
 # ==========================================
 
 def hash_password(password):
-    """(Mejora 1) Convierte contraseña a Hash SHA-256 para no guardarla en texto plano."""
+    """Convierte contraseña a Hash SHA-256."""
     return hashlib.sha256(str.encode(password)).hexdigest()
 
 def sanitizar_texto(texto):
-    """(Mejora 4) Limpia entradas de caracteres peligrosos para CSV."""
+    """Limpia entradas de caracteres peligrosos para CSV."""
     if isinstance(texto, str):
         return re.sub(r'[;,\n\r]', ' ', texto).strip()
     return texto
 
 def cargar_usuarios():
-    """Carga usuarios. Si no existen, crea default con contraseñas HASHED."""
+    """Carga usuarios con contraseñas encriptadas."""
     if not os.path.exists(ARCHIVO_USUARIOS):
         usuarios_defecto = [
             {'Usuario': 'admin', 'Clave': hash_password('admin123'), 'Rol': 'Administrador', 'Nombre': 'CEO SalePony'},
@@ -116,7 +117,7 @@ if 'sesion_iniciada' not in st.session_state:
 def enviar_correo_soporte(mensaje_error):
     """Envía reporte de error al correo del administrador."""
     sender_email = "alanbdb64@gmail.com"
-    sender_password = "dxah wqco wygs bjgk".replace(" ", "") # Tu clave de app ya integrada
+    sender_password = "dxah wqco wygs bjgk".replace(" ", "") # Tu clave de app
     receiver_email = "alanbdb64@gmail.com"
 
     msg = MIMEMultipart()
@@ -344,13 +345,18 @@ else:
     st.sidebar.markdown("---")
     with st.sidebar.expander("📧 Soporte Técnico", expanded=False):
         st.caption("Reporta errores directamente al desarrollador.")
-        msg_error = st.text_area("Describe el problema:")
+        # Usamos key para identificar el widget y limpiarlo
+        msg_error = st.text_area("Describe el problema:", key="txt_soporte")
         if st.button("Enviar Reporte"):
             if msg_error:
                 with st.spinner("Enviando correo..."):
                     exito = enviar_correo_soporte(msg_error)
                     if exito:
                         st.success("¡Reporte enviado exitosamente!")
+                        # Limpiar el input
+                        st.session_state.txt_soporte = ""
+                        time.sleep(1.5)
+                        st.rerun()
             else:
                 st.warning("Escribe algo antes de enviar.")
 
