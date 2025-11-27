@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 # ==========================================
 # 1. CONFIGURACIÓN GENERAL Y ESTILO
 # ==========================================
-st.set_page_config(page_title="SalePony Gold", page_icon="🦄", layout="wide")
+st.set_page_config(page_title="SalePony", page_icon="🦄", layout="wide")
 
 # Estilos CSS Personalizados (Adaptables a Modo Oscuro)
 st.markdown("""
@@ -283,8 +283,22 @@ else:
         st.session_state.sesion_iniciada = False
         st.rerun()
 
+    # --- BOTÓN DISCRETO PARA BORRAR LOGS (SOLO ADMIN) ---
+    if st.session_state.rol_usuario == "Administrador":
+        st.sidebar.markdown("---")
+        with st.sidebar.expander("⚠️ Zona de Peligro", expanded=False):
+            st.caption("Acciones irreversibles")
+            confirmar_reset = st.checkbox("Confirmar borrado de logs")
+            if st.button("🗑️ Limpiar Sistema (Logs)", disabled=not confirmar_reset, type="primary"):
+                if os.path.exists(ARCHIVO_HISTORIAL): os.remove(ARCHIVO_HISTORIAL)
+                if os.path.exists(ARCHIVO_PEDIDOS): os.remove(ARCHIVO_PEDIDOS)
+                st.cache_data.clear()
+                st.success("Historial y Pedidos eliminados.")
+                time.sleep(1)
+                st.rerun()
+
     # --- DASHBOARD ---
-    st.title("🦄 SalePony Gold Edition")
+    st.title("🦄 SalePony Sate Edition")
     
     # KPIs
     pend = df_ped[df_ped['Estado']=='Pendiente'].shape[0]
