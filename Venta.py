@@ -12,122 +12,136 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 
 # ==========================================
-# 1. CONFIGURACIÓN GENERAL Y ESTILO ELITE
+# 1. CONFIGURACIÓN GENERAL Y ESTILO "ELITE UI"
 # ==========================================
 st.set_page_config(page_title="SalePony Elite", page_icon="🦄", layout="wide")
 
-# CSS AVANZADO: TEMA "ELITE GOLD & DARK"
+# CSS MEJORADO: Diseño Responsivo, Moderno y Armónico
 st.markdown("""
     <style>
-    /* IMPORTAR FUENTE ELEGANTE */
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap');
-
+    /* 1. FUENTE MODERNA */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+    
     html, body, [class*="css"] {
-        font-family: 'Montserrat', sans-serif;
+        font-family: 'Poppins', sans-serif;
     }
 
-    /* COLOR DE ACENTO Y TÍTULOS */
+    /* 2. TÍTULOS CON GRADIENTE DORADO (Funciona en Dark/Light) */
     h1, h2, h3 {
-        color: #D4AF37 !important; /* Oro Metálico */
-        font-weight: 700;
-        letter-spacing: 1px;
+        background: linear-gradient(90deg, #D4AF37, #EDC967);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 700 !important;
+        letter-spacing: -0.5px;
     }
-    
-    /* MËTRICAS (KPI CARDS) - ESTILO GLASSMORPHISM */
+
+    /* 3. TARJETAS DE MÉTRICAS (KPIs) - ESTILO FLOTANTE */
     div[data-testid="stMetric"] {
-        background-color: rgba(30, 30, 30, 0.6);
-        border: 1px solid #333;
-        border-left: 5px solid #D4AF37;
-        padding: 15px;
-        border-radius: 10px;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        transition: transform 0.2s;
-    }
-    div[data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(212, 175, 55, 0.15);
+        background-color: var(--secondary-background-color);
+        border: 1px solid rgba(128, 128, 128, 0.1);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
     }
     
-    div[data-testid="stMetricLabel"] {
-        font-size: 0.9rem !important;
-        color: #aaa !important;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 24px rgba(212, 175, 55, 0.15);
+        border-color: rgba(212, 175, 55, 0.5);
     }
+
+    div[data-testid="stMetricLabel"] {
+        color: var(--text-color);
+        font-size: 0.85rem !important;
+        opacity: 0.7;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+    
     div[data-testid="stMetricValue"] {
         font-size: 1.8rem !important;
-        color: #fff !important;
-        font-weight: 600;
+        font-weight: 700;
+        color: var(--text-color);
     }
 
-    /* BOTONES PRIMARIOS DE LUJO */
-    div.stButton > button:first-child {
-        background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
-        color: #D4AF37;
-        border: 1px solid #D4AF37;
-        padding: 0.6em 1.2em;
-        border-radius: 8px;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        transition: all 0.3s ease;
+    /* 4. BOTONES MODERNOS (SOFT UI) */
+    div.stButton > button {
         width: 100%;
-    }
-    div.stButton > button:hover {
-        background: #D4AF37;
-        color: #000;
-        border-color: #D4AF37;
-        box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
-    }
-
-    /* INPUTS Y FORMULARIOS */
-    .stTextInput > div > div > input {
-        background-color: #1E1E1E;
-        color: #fff;
-        border: 1px solid #444;
-        border-radius: 6px;
-    }
-    .stTextInput > div > div > input:focus {
-        border-color: #D4AF37;
-        box-shadow: 0 0 0 1px #D4AF37;
-    }
-    
-    /* PESTAÑAS (TABS) ESTILIZADAS */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        border-bottom: 1px solid #333;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: transparent;
-        border-radius: 4px 4px 0 0;
-        color: #888;
+        border-radius: 12px;
+        border: none;
+        background: linear-gradient(135deg, #D4AF37 0%, #C5A059 100%);
+        color: white !important;
         font-weight: 600;
-        padding: 10px 20px;
-    }
-    .stTabs [aria-selected="true"] {
-        color: #D4AF37 !important;
-        background-color: rgba(212, 175, 55, 0.1) !important;
-        border-bottom: 2px solid #D4AF37 !important;
+        padding: 0.6rem 1rem;
+        box-shadow: 0 4px 10px rgba(212, 175, 55, 0.3);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* SIDEBAR */
-    section[data-testid="stSidebar"] {
-        background-color: #0E0E0E;
-        border-right: 1px solid #333;
+    div.stButton > button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 15px rgba(212, 175, 55, 0.5);
+        background: linear-gradient(135deg, #EDC967 0%, #D4AF37 100%);
     }
     
-    /* ALERTA DE EXITO/ERROR ESTILIZADA */
+    div.stButton > button:active {
+        transform: scale(0.98);
+    }
+
+    /* 5. INPUTS Y CAMPOS DE TEXTO ELEGANTES */
+    .stTextInput > div > div > input, .stNumberInput > div > div > input, .stSelectbox > div > div {
+        background-color: var(--secondary-background-color);
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        border-radius: 10px;
+        color: var(--text-color);
+        transition: border-color 0.3s;
+    }
+
+    .stTextInput > div > div > input:focus, .stNumberInput > div > div > input:focus {
+        border-color: #D4AF37;
+        box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+    }
+
+    /* 6. TABLAS LIMPIAS */
+    div[data-testid="stDataFrame"] {
+        border: 1px solid rgba(128, 128, 128, 0.1);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    /* 7. ALERTAS SUAVES */
     .stAlert {
-        background-color: #1E1E1E;
-        border: 1px solid #333;
-        color: #fff;
-        border-radius: 8px;
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
     }
     
-    /* SEPARADOR */
+    /* 8. PESTAÑAS (TABS) CENTRADAS Y MODERNAS */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 20px;
+        border-bottom: 1px solid rgba(128, 128, 128, 0.1);
+        padding-bottom: 10px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        border-radius: 8px;
+        padding: 0 20px;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background-color: rgba(212, 175, 55, 0.1);
+        color: #D4AF37 !important;
+        border-bottom: 3px solid #D4AF37;
+    }
+
+    /* SEPARADORES SUTILES */
     hr {
-        border-color: #333;
         margin: 2em 0;
+        border: 0;
+        border-top: 1px solid rgba(128, 128, 128, 0.1);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -140,21 +154,18 @@ ARCHIVO_USUARIOS = 'usuarios_seguridad_v3.csv'
 ARCHIVO_CONFIG_API = 'config_apis.csv'
 
 # ==========================================
-# 2. GESTIÓN DE SEGURIDAD (HASHING & SANITIZACIÓN)
+# 2. GESTIÓN DE SEGURIDAD
 # ==========================================
 
 def hash_password(password):
-    """Convierte contraseña a Hash SHA-256."""
     return hashlib.sha256(str.encode(password)).hexdigest()
 
 def sanitizar_texto(texto):
-    """Limpia entradas de caracteres peligrosos para CSV."""
     if isinstance(texto, str):
         return re.sub(r'[;,\n\r]', ' ', texto).strip()
     return texto
 
 def cargar_usuarios():
-    """Carga usuarios con contraseñas encriptadas."""
     if not os.path.exists(ARCHIVO_USUARIOS):
         usuarios_defecto = [
             {'Usuario': 'admin', 'Clave': hash_password('admin123'), 'Rol': 'Administrador', 'Nombre': 'CEO SalePony'},
@@ -166,10 +177,8 @@ def cargar_usuarios():
     return pd.read_csv(ARCHIVO_USUARIOS)
 
 def verificar_login(usuario, clave_plana):
-    """Verifica credenciales comparando HASHES."""
     df = cargar_usuarios()
     user_match = df[df['Usuario'] == usuario]
-    
     if not user_match.empty:
         stored_hash = user_match.iloc[0]['Clave']
         input_hash = hash_password(clave_plana)
@@ -187,13 +196,12 @@ if 'sesion_iniciada' not in st.session_state:
         st.session_state.contador_soporte = 0
 
 # ==========================================
-# 3. LÓGICA DE NEGOCIO Y CORREO
+# 3. LÓGICA DE NEGOCIO
 # ==========================================
 
 def enviar_correo_soporte(mensaje_error):
-    """Envía reporte de error al correo del administrador."""
     sender_email = "alanbdb64@gmail.com"
-    sender_password = "dxah wqco wygs bjgk".replace(" ", "") 
+    sender_password = "dxah wqco wygs bjgk".replace(" ", "")
     receiver_email = "alanbdb64@gmail.com"
 
     msg = MIMEMultipart()
@@ -329,7 +337,7 @@ def calcular_stats():
     return df, None, df
 
 # ==========================================
-# 4. INTERFAZ GRÁFICA ELITE
+# 4. INTERFAZ GRÁFICA
 # ==========================================
 
 # --- LOGIN ---
@@ -337,15 +345,14 @@ if not st.session_state.sesion_iniciada:
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
         st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("<h1 style='text-align: center;'>🦄 SalePony <span style='color:#fff'>Gold</span></h1>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #888;'>Acceso al Sistema Integral</p>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'>🦄 SalePony <span style='color:#D4AF37'>Gold</span></h1>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #888;'>Sistema Integral de Gestión</p>", unsafe_allow_html=True)
         
         with st.container():
-            st.markdown("---")
             with st.form("login"):
-                u = st.text_input("Usuario")
-                p = st.text_input("Contraseña", type="password")
-                if st.form_submit_button("INGRESAR AL SISTEMA", use_container_width=True):
+                u = st.text_input("Usuario", placeholder="Ingresa tu usuario")
+                p = st.text_input("Contraseña", type="password", placeholder="••••••••")
+                if st.form_submit_button("INICIAR SESIÓN", use_container_width=True):
                     val = verificar_login(u, p)
                     if val is not None:
                         st.session_state.sesion_iniciada = True
@@ -361,14 +368,13 @@ else:
     df_inv = cargar_inventario()
     df_ped = cargar_csv(ARCHIVO_PEDIDOS, ['ID_Pedido', 'Fecha', 'SKU', 'Modelo', 'Cantidad', 'Plataforma', 'Estado'])
     
-    # --- SIDEBAR ELITE ---
+    # --- SIDEBAR ---
     with st.sidebar:
-        st.image("https://cdn-icons-png.flaticon.com/512/2316/2316680.png", width=50) # Icono Unicornio Opcional
-        st.markdown(f"### Hola, {st.session_state.nombre_usuario}")
+        st.markdown(f"### 👋 Hola, {st.session_state.nombre_usuario}")
         st.caption(f"Rol: {st.session_state.rol_usuario}")
         st.divider()
         
-        # MENÚS LATERALES
+        # MENU ACCIONES RÁPIDAS
         with st.expander("🇨🇳 Importación"):
             costo = st.number_input("Costo China ($)", 0.0, step=10.0)
             envio = st.number_input("Envío/Imp ($)", 0.0, step=10.0)
@@ -454,7 +460,7 @@ else:
                     time.sleep(1)
                     st.rerun()
 
-    # --- HEADER DASHBOARD ---
+    # --- DASHBOARD PRINCIPAL ---
     st.title("🦄 SalePony Gold")
     
     # KPIs SUPERIORES
@@ -471,7 +477,7 @@ else:
     col1.metric("Ventas Hoy", f"${ventas_hoy:,.2f}")
     col2.metric("Envíos Pendientes", pend, delta_color="inverse" if pend>0 else "normal")
     col3.metric("Stock Bajo", low, delta_color="inverse")
-    col4.metric("Estado", "Operativo 🟢")
+    col4.metric("Estado", "En Línea 🟢")
 
     st.divider()
 
@@ -486,7 +492,7 @@ else:
     with t_ped:
         st.subheader("Gestión de Envíos")
         p_list = df_ped[df_ped['Estado']=='Pendiente']
-        if p_list.empty: st.info("✅ Todo limpio.")
+        if p_list.empty: st.info("✅ Todo despachado. ¡Buen trabajo!")
         else:
             for i, r in p_list.iterrows():
                 with st.container():
@@ -499,7 +505,7 @@ else:
                     if c4.button("Enviado ✅", key=r['ID_Pedido']):
                         df_ped.loc[df_ped['ID_Pedido']==r['ID_Pedido'], 'Estado']='Enviado'
                         guardar_df(df_ped, ARCHIVO_PEDIDOS)
-                        st.toast("Enviado")
+                        st.toast("Actualizado")
                         time.sleep(0.5)
                         st.rerun()
                     st.divider()
@@ -509,7 +515,7 @@ else:
         c_izq, c_der = st.columns([2, 1])
         with c_izq:
             st.subheader("Venta Mostrador")
-            scan = st.text_input("🔫 Escáner SKU", placeholder="Clic aquí...")
+            scan = st.text_input("🔫 Escáner SKU", placeholder="Clic aquí para escanear...")
             sel = None
             if scan:
                 scan_clean = sanitizar_texto(scan) 
@@ -551,7 +557,7 @@ else:
         with c_der:
             st.markdown("🧾 **Ticket**")
             if st.session_state.ultimo_ticket:
-                st.text_area("", st.session_state.ultimo_ticket, height=300)
+                st.text_area("Copia Impresión:", st.session_state.ultimo_ticket, height=300)
                 st.download_button("Descargar", st.session_state.ultimo_ticket, "ticket.txt")
 
     # 3. INVENTARIO
