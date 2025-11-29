@@ -12,47 +12,122 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 
 # ==========================================
-# 1. CONFIGURACIÓN GENERAL Y ESTILO
+# 1. CONFIGURACIÓN GENERAL Y ESTILO ELITE
 # ==========================================
-st.set_page_config(page_title="SalePony Gold Secure", page_icon="🦄", layout="wide")
+st.set_page_config(page_title="SalePony Elite", page_icon="🦄", layout="wide")
 
-# Estilos CSS Personalizados (Adaptables a Modo Oscuro/Claro)
+# CSS AVANZADO: TEMA "ELITE GOLD & DARK"
 st.markdown("""
     <style>
-    /* Títulos Principales en Dorado */
-    h1, h2, h3 {
-        color: #C5A059 !important; /* Dorado elegante */
-        font-family: 'Helvetica Neue', sans-serif;
-    }
-    
-    /* Métricas Responsivas (Se adaptan al tema claro/oscuro) */
-    div[data-testid="stMetric"] {
-        background-color: var(--secondary-background-color);
-        border-left: 4px solid #C5A059;
-        padding: 10px;
-        border-radius: 5px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-    }
-    
-    /* Texto de métricas visible en ambos modos */
-    div[data-testid="stMetricLabel"] {
-        color: var(--text-color) !important;
-    }
-    div[data-testid="stMetricValue"] {
-        color: var(--text-color) !important;
+    /* IMPORTAR FUENTE ELEGANTE */
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Montserrat', sans-serif;
     }
 
-    /* Botones Primarios (Estilo Gold) */
+    /* COLOR DE ACENTO Y TÍTULOS */
+    h1, h2, h3 {
+        color: #D4AF37 !important; /* Oro Metálico */
+        font-weight: 700;
+        letter-spacing: 1px;
+    }
+    
+    /* MËTRICAS (KPI CARDS) - ESTILO GLASSMORPHISM */
+    div[data-testid="stMetric"] {
+        background-color: rgba(30, 30, 30, 0.6);
+        border: 1px solid #333;
+        border-left: 5px solid #D4AF37;
+        padding: 15px;
+        border-radius: 10px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        transition: transform 0.2s;
+    }
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(212, 175, 55, 0.15);
+    }
+    
+    div[data-testid="stMetricLabel"] {
+        font-size: 0.9rem !important;
+        color: #aaa !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    div[data-testid="stMetricValue"] {
+        font-size: 1.8rem !important;
+        color: #fff !important;
+        font-weight: 600;
+    }
+
+    /* BOTONES PRIMARIOS DE LUJO */
     div.stButton > button:first-child {
-        background-color: #111111;
-        color: #C5A059;
-        border: 1px solid #C5A059;
-        font-weight: bold;
+        background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
+        color: #D4AF37;
+        border: 1px solid #D4AF37;
+        padding: 0.6em 1.2em;
+        border-radius: 8px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+        width: 100%;
     }
     div.stButton > button:hover {
-        background-color: #C5A059;
-        border-color: #FFFFFF;
-        color: #000000;
+        background: #D4AF37;
+        color: #000;
+        border-color: #D4AF37;
+        box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+    }
+
+    /* INPUTS Y FORMULARIOS */
+    .stTextInput > div > div > input {
+        background-color: #1E1E1E;
+        color: #fff;
+        border: 1px solid #444;
+        border-radius: 6px;
+    }
+    .stTextInput > div > div > input:focus {
+        border-color: #D4AF37;
+        box-shadow: 0 0 0 1px #D4AF37;
+    }
+    
+    /* PESTAÑAS (TABS) ESTILIZADAS */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        border-bottom: 1px solid #333;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: transparent;
+        border-radius: 4px 4px 0 0;
+        color: #888;
+        font-weight: 600;
+        padding: 10px 20px;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #D4AF37 !important;
+        background-color: rgba(212, 175, 55, 0.1) !important;
+        border-bottom: 2px solid #D4AF37 !important;
+    }
+
+    /* SIDEBAR */
+    section[data-testid="stSidebar"] {
+        background-color: #0E0E0E;
+        border-right: 1px solid #333;
+    }
+    
+    /* ALERTA DE EXITO/ERROR ESTILIZADA */
+    .stAlert {
+        background-color: #1E1E1E;
+        border: 1px solid #333;
+        color: #fff;
+        border-radius: 8px;
+    }
+    
+    /* SEPARADOR */
+    hr {
+        border-color: #333;
+        margin: 2em 0;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -108,7 +183,6 @@ if 'sesion_iniciada' not in st.session_state:
     st.session_state.nombre_usuario = None
     st.session_state.usuario_id = None
     st.session_state.ultimo_ticket = ""
-    # CORRECCIÓN: Inicializamos un contador para resetear inputs sin errores
     if 'contador_soporte' not in st.session_state:
         st.session_state.contador_soporte = 0
 
@@ -119,7 +193,7 @@ if 'sesion_iniciada' not in st.session_state:
 def enviar_correo_soporte(mensaje_error):
     """Envía reporte de error al correo del administrador."""
     sender_email = "alanbdb64@gmail.com"
-    sender_password = "dxah wqco wygs bjgk".replace(" ", "")
+    sender_password = "dxah wqco wygs bjgk".replace(" ", "") 
     receiver_email = "alanbdb64@gmail.com"
 
     msg = MIMEMultipart()
@@ -255,149 +329,137 @@ def calcular_stats():
     return df, None, df
 
 # ==========================================
-# 4. INTERFAZ GRÁFICA
+# 4. INTERFAZ GRÁFICA ELITE
 # ==========================================
 
 # --- LOGIN ---
 if not st.session_state.sesion_iniciada:
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        st.markdown("<h1 style='text-align: center; color: #C5A059;'>🦄 SalePony Gold</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center;'>Acceso Seguro</p>", unsafe_allow_html=True)
-        with st.form("login"):
-            u = st.text_input("Usuario")
-            p = st.text_input("Contraseña", type="password")
-            if st.form_submit_button("INGRESAR", use_container_width=True):
-                val = verificar_login(u, p)
-                if val is not None:
-                    st.session_state.sesion_iniciada = True
-                    st.session_state.rol_usuario = val['Rol']
-                    st.session_state.nombre_usuario = val['Nombre']
-                    st.session_state.usuario_id = val['Usuario']
-                    st.rerun()
-                else: st.error("Acceso Denegado")
-        st.caption("Admin: admin/admin123 | Op: operador/op123")
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'>🦄 SalePony <span style='color:#fff'>Gold</span></h1>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #888;'>Acceso al Sistema Integral</p>", unsafe_allow_html=True)
+        
+        with st.container():
+            st.markdown("---")
+            with st.form("login"):
+                u = st.text_input("Usuario")
+                p = st.text_input("Contraseña", type="password")
+                if st.form_submit_button("INGRESAR AL SISTEMA", use_container_width=True):
+                    val = verificar_login(u, p)
+                    if val is not None:
+                        st.session_state.sesion_iniciada = True
+                        st.session_state.rol_usuario = val['Rol']
+                        st.session_state.nombre_usuario = val['Nombre']
+                        st.session_state.usuario_id = val['Usuario']
+                        st.rerun()
+                    else: st.error("Acceso Denegado")
+            st.caption("Admin: admin/admin123 | Op: operador/op123")
 
 # --- APP ---
 else:
     df_inv = cargar_inventario()
     df_ped = cargar_csv(ARCHIVO_PEDIDOS, ['ID_Pedido', 'Fecha', 'SKU', 'Modelo', 'Cantidad', 'Plataforma', 'Estado'])
     
-    # --- SIDEBAR ---
-    st.sidebar.markdown(f"### 👤 {st.session_state.nombre_usuario}")
-    st.sidebar.caption(f"Rol: {st.session_state.rol_usuario}")
-    st.sidebar.divider()
-    
-    # 1. Calculadora Importación
-    with st.sidebar.expander("🇨🇳 Calc. Importación"):
-        costo = st.number_input("Costo China ($)", 0.0, step=10.0)
-        envio = st.number_input("Envío/Impuestos ($)", 0.0, step=10.0)
-        venta = st.number_input("Precio Venta ($)", 0.0, step=10.0)
-        if st.button("Calcular"):
-            total = costo + envio
-            comision = venta * 0.15 
-            ganancia = venta - total - comision
-            if ganancia > 0: st.success(f"Ganancia: ${ganancia:,.2f}")
-            else: st.error(f"Pérdida: ${ganancia:,.2f}")
-
-    # 2. Corte de Caja
-    with st.sidebar.expander("💰 Corte de Caja"):
-        raw, _, df_full = calcular_stats()
-        esperado = 0.0
-        if df_full is not None and not df_full.empty:
-            hoy = datetime.now().date()
-            mask = (df_full['Fecha_Dt'].dt.date == hoy) & (df_full['Accion'].str.contains('VENTA')) & (df_full['Usuario'] == st.session_state.nombre_usuario)
-            esperado = df_full[mask]['Monto_Venta'].sum()
-        st.write(f"Esperado: ${esperado:,.2f}")
-        real = st.number_input("Efectivo:", 0.0)
-        if st.button("Validar"):
-            diff = real - esperado
-            if diff == 0: st.success("Exacto")
-            elif diff > 0: st.warning(f"Sobra ${diff}")
-            else: st.error(f"Falta ${abs(diff)}")
-
-    # 3. Configuración API (Solo Admin)
-    if st.session_state.rol_usuario == "Administrador":
-        with st.sidebar.expander("🔌 Conexiones API"):
-            ml_token_env = os.environ.get("ML_TOKEN", "")
-            amz_token_env = os.environ.get("AMZ_TOKEN", "")
-            st.text_input("Mercado Libre ID", value=ml_token_env if ml_token_env else "", type="password", placeholder="Detectado de ENV" if ml_token_env else "")
-            st.text_input("Amazon Token", value=amz_token_env if amz_token_env else "", type="password", placeholder="Detectado de ENV" if amz_token_env else "")
-            if ml_token_env: st.caption("✅ Tokens cargados")
-            else: st.caption("⚠️ Configuración manual")
-
-    if st.sidebar.button("🔄 Sincronizar Marketplaces", type="primary"):
-        with st.spinner("Conectando..."):
-            news, logs = sincronizar_marketplaces(df_inv)
-            for l in logs: st.toast(l)
-            if news:
-                for n in news:
-                    idx = df_inv[df_inv['SKU']==n['SKU']].index[0]
-                    df_inv.at[idx, 'Cantidad'] -= n['Cantidad']
-                    new_p = {'ID_Pedido':f"ORD-{int(time.time())}", 'Fecha':datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'SKU':n['SKU'], 'Modelo':n['Modelo'], 'Cantidad':n['Cantidad'], 'Plataforma':n['Plataforma'], 'Estado':'Pendiente'}
-                    df_ped = pd.concat([df_ped, pd.DataFrame([new_p])], ignore_index=True)
-                    registrar_historial("VENTA_AUTO", n['SKU'], n['Modelo'], n['Cantidad'], 0, 0, f"Venta {n['Plataforma']}")
-                guardar_df(df_inv, ARCHIVO_INVENTARIO)
-                guardar_df(df_ped, ARCHIVO_PEDIDOS)
-                st.success(f"{len(news)} Pedidos nuevos!")
-                time.sleep(1)
-                st.rerun()
-
-    # --- AGREGADO: BOTÓN SOPORTE TÉCNICO (CORREO) ---
-    st.sidebar.markdown("---")
-    with st.sidebar.expander("📧 Soporte Técnico", expanded=False):
-        st.caption("Reporta errores directamente al desarrollador.")
-        # CORRECCIÓN: Key dinámica para permitir limpieza automática sin errores
-        key_dinamica = f"txt_soporte_{st.session_state.contador_soporte}"
-        msg_error = st.text_area("Describe el problema:", key=key_dinamica)
+    # --- SIDEBAR ELITE ---
+    with st.sidebar:
+        st.image("https://cdn-icons-png.flaticon.com/512/2316/2316680.png", width=50) # Icono Unicornio Opcional
+        st.markdown(f"### Hola, {st.session_state.nombre_usuario}")
+        st.caption(f"Rol: {st.session_state.rol_usuario}")
+        st.divider()
         
-        if st.button("Enviar Reporte"):
-            if msg_error:
-                with st.spinner("Enviando correo..."):
-                    exito = enviar_correo_soporte(msg_error)
-                    if exito:
-                        st.success("¡Reporte enviado exitosamente!")
-                        # CORRECCIÓN: Incrementamos contador para 'resetear' el widget en el siguiente rerun
-                        st.session_state.contador_soporte += 1
-                        time.sleep(1.5)
-                        st.rerun()
-            else:
-                st.warning("Escribe algo antes de enviar.")
+        # MENÚS LATERALES
+        with st.expander("🇨🇳 Importación"):
+            costo = st.number_input("Costo China ($)", 0.0, step=10.0)
+            envio = st.number_input("Envío/Imp ($)", 0.0, step=10.0)
+            venta = st.number_input("P. Venta ($)", 0.0, step=10.0)
+            if st.button("Calcular Margen"):
+                total = costo + envio
+                comision = venta * 0.15 
+                ganancia = venta - total - comision
+                if ganancia > 0: st.success(f"Ganancia: ${ganancia:,.2f}")
+                else: st.error(f"Pérdida: ${ganancia:,.2f}")
 
-    if st.sidebar.button("Salir"):
-        st.session_state.sesion_iniciada = False
-        st.rerun()
+        with st.expander("💰 Arqueo de Caja"):
+            raw, _, df_full = calcular_stats()
+            esperado = 0.0
+            if df_full is not None and not df_full.empty:
+                hoy = datetime.now().date()
+                mask = (df_full['Fecha_Dt'].dt.date == hoy) & (df_full['Accion'].str.contains('VENTA')) & (df_full['Usuario'] == st.session_state.nombre_usuario)
+                esperado = df_full[mask]['Monto_Venta'].sum()
+            st.write(f"Esperado: ${esperado:,.2f}")
+            real = st.number_input("Efectivo:", 0.0)
+            if st.button("Validar Caja"):
+                diff = real - esperado
+                if diff == 0: st.success("✅ Cuadra")
+                elif diff > 0: st.warning(f"⚠️ Sobra ${diff}")
+                else: st.error(f"❌ Falta ${abs(diff)}")
 
-    # --- BOTÓN DISCRETO PARA BORRAR LOGS (SOLO ADMIN) ---
-    if st.session_state.rol_usuario == "Administrador":
-        with st.sidebar.expander("⚠️ Zona de Peligro", expanded=False):
-            st.caption("Acciones irreversibles")
-            password_confirm = st.text_input("Contraseña de Admin para confirmar:", type="password")
-            confirmar_reset = st.checkbox("Entiendo que esto borra todo")
-            
-            btn_disabled = True
-            if password_confirm and confirmar_reset:
-                user_data = verificar_login(st.session_state.usuario_id, password_confirm)
-                if user_data is not None:
-                    btn_disabled = False
-                else:
-                    st.error("Contraseña incorrecta")
+        if st.session_state.rol_usuario == "Administrador":
+            with st.expander("🔌 APIs"):
+                ml_token_env = os.environ.get("ML_TOKEN", "")
+                st.text_input("Mercado Libre ID", value=ml_token_env, type="password", placeholder="API KEY")
+                st.text_input("Amazon Token", type="password", placeholder="TOKEN")
 
-            if st.button("🗑️ Limpiar Sistema (Logs)", disabled=btn_disabled, type="primary"):
-                if os.path.exists(ARCHIVO_HISTORIAL): os.remove(ARCHIVO_HISTORIAL)
-                if os.path.exists(ARCHIVO_PEDIDOS): os.remove(ARCHIVO_PEDIDOS)
-                st.cache_data.clear()
-                st.success("Historial y Pedidos eliminados.")
-                time.sleep(1)
-                st.rerun()
+        st.markdown("---")
+        if st.button("🔄 Sincronizar", type="primary"):
+            with st.spinner("Conectando..."):
+                news, logs = sincronizar_marketplaces(df_inv)
+                if news:
+                    for n in news:
+                        idx = df_inv[df_inv['SKU']==n['SKU']].index[0]
+                        df_inv.at[idx, 'Cantidad'] -= n['Cantidad']
+                        new_p = {'ID_Pedido':f"ORD-{int(time.time())}", 'Fecha':datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'SKU':n['SKU'], 'Modelo':n['Modelo'], 'Cantidad':n['Cantidad'], 'Plataforma':n['Plataforma'], 'Estado':'Pendiente'}
+                        df_ped = pd.concat([df_ped, pd.DataFrame([new_p])], ignore_index=True)
+                        registrar_historial("VENTA_AUTO", n['SKU'], n['Modelo'], n['Cantidad'], 0, 0, f"Venta {n['Plataforma']}")
+                    guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                    guardar_df(df_ped, ARCHIVO_PEDIDOS)
+                    st.success(f"{len(news)} Pedidos!")
+                    time.sleep(1)
+                    st.rerun()
+                else: st.info("Todo actualizado")
 
-    # --- DASHBOARD ---
-    st.title("🦄 SalePony Gold Edition")
+        # SOPORTE TÉCNICO
+        with st.expander("📧 Soporte", expanded=False):
+            key_dinamica = f"txt_soporte_{st.session_state.contador_soporte}"
+            msg_error = st.text_area("Mensaje:", key=key_dinamica)
+            if st.button("Enviar"):
+                if msg_error:
+                    with st.spinner("Enviando..."):
+                        if enviar_correo_soporte(msg_error):
+                            st.success("Enviado")
+                            st.session_state.contador_soporte += 1
+                            time.sleep(1)
+                            st.rerun()
+
+        if st.button("Salir"):
+            st.session_state.sesion_iniciada = False
+            st.rerun()
+
+        # ZONA DE PELIGRO (Admin)
+        if st.session_state.rol_usuario == "Administrador":
+            with st.expander("⚠️ Zona Peligro", expanded=False):
+                password_confirm = st.text_input("Clave Admin:", type="password")
+                confirmar_reset = st.checkbox("Borrar Todo")
+                btn_disabled = True
+                if password_confirm and confirmar_reset:
+                    user_data = verificar_login(st.session_state.usuario_id, password_confirm)
+                    if user_data is not None: btn_disabled = False
+                    else: st.error("Clave mal")
+                if st.button("🗑️ Resetear", disabled=btn_disabled, type="primary"):
+                    if os.path.exists(ARCHIVO_HISTORIAL): os.remove(ARCHIVO_HISTORIAL)
+                    if os.path.exists(ARCHIVO_PEDIDOS): os.remove(ARCHIVO_PEDIDOS)
+                    st.cache_data.clear()
+                    st.success("Limpio")
+                    time.sleep(1)
+                    st.rerun()
+
+    # --- HEADER DASHBOARD ---
+    st.title("🦄 SalePony Gold")
     
-    # KPIs
+    # KPIs SUPERIORES
     pend = df_ped[df_ped['Estado']=='Pendiente'].shape[0]
     low = df_inv[df_inv['Cantidad'] <= df_inv['Stock_Minimo']].shape[0]
-    
     raw, _, df_full = calcular_stats()
     ventas_hoy = 0
     if df_full is not None and not df_full.empty:
@@ -405,16 +467,16 @@ else:
         m = df_full[(df_full['Fecha_Dt'].dt.date == hoy) & (df_full['Accion'].str.contains('VENTA'))]
         ventas_hoy = m['Monto_Venta'].sum()
 
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Ventas Hoy (Global)", f"${ventas_hoy:,.2f}")
-    k2.metric("Pedidos Web", pend, delta_color="inverse" if pend>0 else "normal")
-    k3.metric("Stock Crítico", low, delta_color="inverse")
-    k4.metric("Marketplaces", "En Línea 🟢")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Ventas Hoy", f"${ventas_hoy:,.2f}")
+    col2.metric("Envíos Pendientes", pend, delta_color="inverse" if pend>0 else "normal")
+    col3.metric("Stock Bajo", low, delta_color="inverse")
+    col4.metric("Estado", "Operativo 🟢")
 
     st.divider()
 
-    # PESTAÑAS
-    tabs = st.tabs(["📦 Pedidos Web", "🛒 Punto de Venta", "📱 Inventario", "📝 Admin", "📊 Reportes"]) if st.session_state.rol_usuario == "Administrador" else st.tabs(["📦 Pedidos Web", "🛒 Punto de Venta", "📱 Consultar"])
+    # --- CONTENIDO PRINCIPAL ---
+    tabs = st.tabs(["📦 PEDIDOS WEB", "🛒 PUNTO DE VENTA", "📱 INVENTARIO", "📝 ADMIN", "📊 REPORTES"]) if st.session_state.rol_usuario == "Administrador" else st.tabs(["📦 PEDIDOS WEB", "🛒 PUNTO DE VENTA", "📱 CONSULTAR"])
     
     t_ped, t_pos, t_inv = tabs[0], tabs[1], tabs[2]
     t_adm = tabs[3] if len(tabs) > 3 else None
@@ -422,9 +484,9 @@ else:
 
     # 1. PEDIDOS WEB
     with t_ped:
-        st.subheader("Gestión de Envíos (ML / Amazon)")
+        st.subheader("Gestión de Envíos")
         p_list = df_ped[df_ped['Estado']=='Pendiente']
-        if p_list.empty: st.info("✅ Todo despachado.")
+        if p_list.empty: st.info("✅ Todo limpio.")
         else:
             for i, r in p_list.iterrows():
                 with st.container():
@@ -437,7 +499,7 @@ else:
                     if c4.button("Enviado ✅", key=r['ID_Pedido']):
                         df_ped.loc[df_ped['ID_Pedido']==r['ID_Pedido'], 'Estado']='Enviado'
                         guardar_df(df_ped, ARCHIVO_PEDIDOS)
-                        st.toast("Actualizado")
+                        st.toast("Enviado")
                         time.sleep(0.5)
                         st.rerun()
                     st.divider()
@@ -447,16 +509,15 @@ else:
         c_izq, c_der = st.columns([2, 1])
         with c_izq:
             st.subheader("Venta Mostrador")
-            scan = st.text_input("🔫 Escáner SKU", placeholder="Clic y escanear...")
+            scan = st.text_input("🔫 Escáner SKU", placeholder="Clic aquí...")
             sel = None
-            
             if scan:
                 scan_clean = sanitizar_texto(scan) 
                 f = df_inv[df_inv['SKU'].astype(str) == scan_clean]
                 if not f.empty:
                     sel = f.iloc[0]
                     st.success(f"Producto: {sel['Modelo']}")
-                else: st.warning("SKU no encontrado")
+                else: st.warning("No encontrado")
             
             if not df_inv.empty:
                 ok = df_inv[df_inv['Cantidad'] > 0]
@@ -468,17 +529,17 @@ else:
                 if sel is not None:
                     idx = df_inv[df_inv['SKU'] == sel['SKU']].index[0]
                     item = df_inv.iloc[idx]
-                    stock_real_actual = int(item['Cantidad'])
+                    stock_real = int(item['Cantidad'])
                     
                     st.markdown(f"**{item['Modelo']}** | Disp: {item['Cantidad']}")
                     cq, cp = st.columns(2)
-                    q = cq.number_input("Cantidad", 1, max(1, stock_real_actual), 1)
+                    q = cq.number_input("Cantidad", 1, max(1, stock_real), 1)
                     tot = item['Precio_Venta'] * q
                     cp.metric("Total", f"${tot:,.2f}")
                     
                     if st.button("COBRAR", type="primary", use_container_width=True):
-                        if q > stock_real_actual:
-                            st.error(f"⛔ ERROR: Intentas vender {q} pero solo hay {stock_real_actual} en existencia. Actualiza la página.")
+                        if q > stock_real:
+                            st.error("⛔ ERROR: Stock insuficiente.")
                         else:
                             df_inv.at[idx, 'Cantidad'] -= q
                             guardar_df(df_inv, ARCHIVO_INVENTARIO)
@@ -487,7 +548,6 @@ else:
                             st.success("Venta OK")
                             time.sleep(0.5)
                             st.rerun()
-        
         with c_der:
             st.markdown("🧾 **Ticket**")
             if st.session_state.ultimo_ticket:
@@ -496,19 +556,17 @@ else:
 
     # 3. INVENTARIO
     with t_inv:
-        st.subheader("Inventario y Proveedores")
+        st.subheader("Inventario")
         cols = ['SKU', 'Modelo', 'Cantidad', 'Stock_Minimo', 'Link_AliExpress', 'Precio_ML', 'Precio_Amazon']
-        st.dataframe(df_inv[cols], use_container_width=True, column_config={"Link_AliExpress": st.column_config.LinkColumn("Comprar China")})
+        st.dataframe(df_inv[cols], use_container_width=True, column_config={"Link_AliExpress": st.column_config.LinkColumn("AliExpress")})
 
-    # 4. ADMIN (Solo Admin)
+    # 4. ADMIN
     if t_adm:
         with t_adm:
-            st.subheader("Gestión de Productos")
+            st.subheader("Gestión")
             act = st.radio("Acción", ["Nuevo", "Clonar", "Editar Info", "Ajuste Stock"], horizontal=True)
-            
             d_sku, d_mod, d_cat, d_cos, d_pre, d_can, d_link, d_ml, d_amz = "", "", "Fundas", 0.0, 0.0, 0, "", 0.0, 0.0
             idx_e = -1
-            
             if act != "Nuevo" and not df_inv.empty:
                 s_ed = st.selectbox("Seleccionar:", df_inv['Modelo'].unique())
                 idx_e = df_inv[df_inv['Modelo']==s_ed].index[0]
@@ -523,30 +581,24 @@ else:
                 c1, c2 = st.columns(2)
                 f_sku = c1.text_input("SKU", d_sku, disabled=(act in ["Editar Info", "Ajuste Stock"]))
                 f_mod = c2.text_input("Modelo", d_mod, disabled=(act=="Ajuste Stock"))
-                
                 c3, c4, c5 = st.columns(3)
                 f_cat = c3.selectbox("Cat.", ["Fundas", "Micas", "Cargadores", "Cables", "Otro"], index=0)
                 f_can = c4.number_input("Stock", value=d_can)
                 f_min = c5.number_input("Mínimo", 5)
-                
                 c6, c7, c8 = st.columns(3)
                 f_cos = c6.number_input("Costo", value=d_cos)
                 f_pre = c7.number_input("P. Venta", value=d_pre)
                 f_lnk = c8.text_input("Link Ali", d_link)
-                
                 c9, c10 = st.columns(2)
                 f_ml = c9.number_input("Precio ML", value=d_ml)
                 f_amz = c10.number_input("Precio Amz", value=d_amz)
-                
                 if st.form_submit_button("Guardar"):
-                    if not f_mod: st.error("Nombre requerido")
+                    if not f_mod: st.error("Falta nombre")
                     else:
-                        f_mod = sanitizar_texto(f_mod) 
-                        f_sku = sanitizar_texto(f_sku) 
-                        
+                        f_mod = sanitizar_texto(f_mod)
+                        f_sku = sanitizar_texto(f_sku)
                         if not f_sku: f_sku = f"ACC-{str(uuid.uuid4())[:6].upper()}"
                         new_d = {'SKU': f_sku, 'Categoria': f_cat, 'Modelo': f_mod, 'Tipo': 'Imp', 'Cantidad': f_can, 'Stock_Minimo': f_min, 'Costo_Unitario': f_cos, 'Precio_Venta': f_pre, 'Link_AliExpress': f_lnk, 'Precio_ML': f_ml, 'Precio_Amazon': f_amz}
-                        
                         if act in ["Editar Info", "Ajuste Stock"] and idx_e != -1:
                             diff = f_can - df_inv.at[idx_e, 'Cantidad']
                             for k,v in new_d.items(): df_inv.at[idx_e, k] = v
@@ -561,68 +613,38 @@ else:
                         time.sleep(1)
                         st.rerun()
 
-    # 5. REPORTES (Solo Admin)
+    # 5. REPORTES
     if t_rep:
         with t_rep:
-            st.subheader("Inteligencia de Negocio")
-            
-            with st.expander("📚 Ayuda: ¿Cómo entender mis números?"):
-                st.markdown("""
-                **1. Flujo de Caja (Dinero Real):** Muestra si entró o salió dinero de tu cuenta hoy.  
-                *Ingresos (Ventas) - Egresos (Compras de Mercancía).*
-                
-                **2. Rentabilidad (Ganancia del Producto):** Muestra si estás ganando dinero en cada venta, ignorando si compraste stock hoy o el mes pasado.  
-                *Precio Venta - Costo Producto - Impuestos - Comisiones.*
-                """)
-
-            freq = st.radio("Agrupar:", ["Día", "Mes"], horizontal=True)
+            st.subheader("Finanzas")
+            freq = st.radio("Ver por:", ["Día", "Mes"], horizontal=True)
             if df_full is not None and not df_full.empty:
                 df_c = df_full.copy()
                 grp = df_c['Fecha_Dt'].dt.date if freq=="Día" else df_c['Fecha_Dt'].dt.strftime('%Y-%m')
-                
-                # --- SECCIÓN 1: Flujo de Caja ---
-                st.markdown("### 1. Flujo de Dinero (Entradas vs Salidas)")
+                st.markdown("### 1. Flujo de Caja")
                 tab = df_c.groupby(grp)[['Monto_Venta', 'Monto_Gasto']].sum()
-                tab.columns = ['Ventas ($)', 'Compras Stock ($)']
-                tab['Flujo Neto'] = tab['Ventas ($)'] - tab['Compras Stock ($)']
+                tab.columns = ['Ventas', 'Compras']
+                tab['Neto'] = tab['Ventas'] - tab['Compras']
                 st.dataframe(tab.style.format("${:,.2f}"), use_container_width=True)
-                
                 st.divider()
-                
-                # --- SECCIÓN 2: Rentabilidad Real ---
-                st.markdown("### 2. Rentabilidad Real (Ganancia Libre)")
-                
+                st.markdown("### 2. Rentabilidad Real")
                 c1, c2 = st.columns(2)
-                imp_pct = c1.number_input("Impuestos (%)", value=16.0) / 100
-                com_pct = c2.number_input("Comisión Plataforma (%)", value=15.0) / 100
-                
-                ventas_solo = df_c[df_c['Accion'].str.contains('VENTA')]
-                if not ventas_solo.empty:
-                    total_vendido = ventas_solo['Monto_Venta'].sum()
-                    costo_vendido = ventas_solo['Costo_Venta'].sum()
-                    ganancia_bruta = total_vendido - costo_vendido
-                    gastos_imuestos = total_vendido * imp_pct
-                    gastos_comis = total_vendido * com_pct
-                    ganancia_neta = ganancia_bruta - gastos_imuestos - gastos_comis
-                    
+                imp_pct = c1.number_input("Impuestos %", 16.0) / 100
+                com_pct = c2.number_input("Comisión %", 15.0) / 100
+                vs = df_c[df_c['Accion'].str.contains('VENTA')]
+                if not vs.empty:
+                    tot_v = vs['Monto_Venta'].sum()
+                    tot_c = vs['Costo_Venta'].sum()
+                    bruta = tot_v - tot_c
+                    gastos = tot_v * (imp_pct + com_pct)
+                    neta = bruta - gastos
                     m1, m2, m3 = st.columns(3)
-                    m1.metric("Venta Total", f"${total_vendido:,.2f}")
-                    m2.metric("Costo Mercancía", f"-${costo_vendido:,.2f}")
-                    m3.metric("Utilidad Bruta", f"${ganancia_bruta:,.2f}")
-                    
+                    m1.metric("Venta Total", f"${tot_v:,.2f}")
+                    m2.metric("Costo Prod.", f"-${tot_c:,.2f}")
+                    m3.metric("Utilidad Bruta", f"${bruta:,.2f}")
                     m4, m5, m6 = st.columns(3)
-                    m4.metric("Impuestos/Comis.", f"-${gastos_imuestos + gastos_comis:,.2f}")
-                    m5.metric("💰 Ganancia LIBRE", f"${ganancia_neta:,.2f}", delta="Tu dinero real")
-                    if total_vendido > 0:
-                        margen = (ganancia_neta / total_vendido) * 100
-                        m6.metric("Margen Neto", f"{margen:.1f}%")
-                else:
-                    st.info("No hay ventas para calcular rentabilidad.")
-
-                st.divider()
-                st.markdown("##### Comisiones Empleados")
-                if not ventas_solo.empty:
-                    com = ventas_solo.groupby('Usuario')['Monto_Venta'].sum().reset_index()
-                    com['Pago (3%)'] = com['Monto_Venta'] * 0.03
-                    st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Pago (3%)': '${:,.2f}'}), use_container_width=True)
-            else: st.info("Sin datos.")
+                    m4.metric("Impuestos/Comis", f"-${gastos:,.2f}")
+                    m5.metric("💰 GANANCIA LIBRE", f"${neta:,.2f}")
+                    if tot_v > 0: m6.metric("Margen", f"{(neta/tot_v)*100:.1f}%")
+                else: st.info("Sin ventas")
+            else: st.info("Sin datos")
