@@ -343,8 +343,9 @@ else:
 
         if st.session_state.rol_usuario == "Administrador":
             with st.expander("🔌 APIs"):
-                st.text_input("Mercado Libre", type="password")
-                st.text_input("Amazon", type="password")
+                ml_token_env = os.environ.get("ML_TOKEN", "")
+                st.text_input("Mercado Libre ID", value=ml_token_env, type="password", placeholder="API KEY")
+                st.text_input("Amazon Token", type="password", placeholder="TOKEN")
 
         st.markdown("---")
         if st.button("🔄 Sincronizar Nube"):
@@ -367,13 +368,15 @@ else:
         # SOPORTE TÉCNICO
         with st.expander("📧 Soporte", expanded=False):
             key_dinamica = f"txt_soporte_{st.session_state.contador_soporte}"
-            msg_error = st.text_area("Problema:", key=key_dinamica)
-            if st.button("Enviar Reporte"):
-                if msg_error and enviar_correo_soporte(msg_error):
-                    st.success("Enviado")
-                    st.session_state.contador_soporte += 1
-                    time.sleep(1)
-                    st.rerun()
+            msg_error = st.text_area("Mensaje:", key=key_dinamica)
+            if st.button("Enviar"):
+                if msg_error:
+                    with st.spinner("Enviando..."):
+                        if enviar_correo_soporte(msg_error):
+                            st.success("Enviado")
+                            st.session_state.contador_soporte += 1
+                            time.sleep(1)
+                            st.rerun()
 
         if st.button("Cerrar Sesión"):
             st.session_state.sesion_iniciada = False
@@ -522,17 +525,66 @@ else:
             }
         )
 
-    # 4. ADMIN
+    # 4. ADMIN RESTAURADO CON ESTILO NUEVO
     if t_adm:
         with t_adm:
             st.markdown("#### 🛠️ Gestión de Catálogo")
             act = st.radio("Acción", ["Nuevo", "Clonar", "Editar Info", "Ajuste Stock"], horizontal=True)
-            # (Lógica de formulario admin igual que antes, resumida por espacio visual)
-            d_mod, d_qty = "", 10
-            # ... [Aquí iría el formulario Admin que ya tenías, funciona igual] ...
-            # Para no saturar el chat, asumo que mantienes la lógica del formulario anterior.
-            # Si quieres que repita el formulario completo aquí, dímelo.
-            st.info("Formulario de administración (mismo código lógico anterior, solo cambia estilo visual).")
+            
+            d_sku, d_mod, d_cat, d_cos, d_pre, d_can, d_link, d_ml, d_amz = "", "", "Fundas", 0.0, 0.0, 0, "", 0.0, 0.0
+            idx_e = -1
+            
+            if act != "Nuevo" and not df_inv.empty:
+                s_ed = st.selectbox("Seleccionar:", df_inv['Modelo'].unique())
+                idx_e = df_inv[df_inv['Modelo']==s_ed].index[0]
+                row = df_inv.iloc[idx_e]
+                d_mod = row['Modelo'] + (" (Copia)" if act=="Clonar" else "")
+                d_sku = "" if act=="Clonar" else row['SKU']
+                d_cat, d_can = row['Categoria'], int(row['Cantidad'])
+                d_cos, d_pre = float(row['Costo_Unitario']), float(row['Precio_Venta'])
+                d_link, d_ml, d_amz = row['Link_AliExpress'], float(row['Precio_ML']), float(row['Precio_Amazon'])
+
+            with st.form("admin_p"):
+                c1, c2 = st.columns(2)
+                f_sku = c1.text_input("SKU", d_sku, disabled=(act in ["Editar Info", "Ajuste Stock"]))
+                f_mod = c2.text_input("Modelo", d_mod, disabled=(act=="Ajuste Stock"))
+                
+                c3, c4, c5 = st.columns(3)
+                f_cat = c3.selectbox("Cat.", ["Fundas", "Micas", "Cargadores", "Cables", "Otro"], index=0)
+                f_can = c4.number_input("Stock", value=d_can)
+                f_min = c5.number_input("Mínimo", 5)
+                
+                c6, c7, c8 = st.columns(3)
+                f_cos = c6.number_input("Costo", value=d_cos)
+                f_pre = c7.number_input("P. Venta", value=d_pre)
+                f_lnk = c8.text_input("Link Ali", d_link)
+                
+                c9, c10 = st.columns(2)
+                f_ml = c9.number_input("Precio ML", value=d_ml)
+                f_amz = c10.number_input("Precio Amz", value=d_amz)
+                
+                if st.form_submit_button("Guardar Cambios"):
+                    if not f_mod: st.error("Nombre requerido")
+                    else:
+                        f_mod = sanitizar_texto(f_mod)
+                        f_sku = sanitizar_texto(f_sku)
+                        
+                        if not f_sku: f_sku = f"ACC-{str(uuid.uuid4())[:6].upper()}"
+                        new_d = {'SKU': f_sku, 'Categoria': f_cat, 'Modelo': f_mod, 'Tipo': 'Imp', 'Cantidad': f_can, 'Stock_Minimo': f_min, 'Costo_Unitario': f_cos, 'Precio_Venta': f_pre, 'Link_AliExpress': f_lnk, 'Precio_ML': f_ml, 'Precio_Amazon': f_amz}
+                        
+                        if act in ["Editar Info", "Ajuste Stock"] and idx_e != -1:
+                            diff = f_can - df_inv.at[idx_e, 'Cantidad']
+                            for k,v in new_d.items(): df_inv.at[idx_e, k] = v
+                            guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                            registrar_historial("EDICION", f_sku, f_mod, abs(diff), 0, 0, f"Ajuste {diff}")
+                            st.success("Guardado")
+                        else:
+                            df_inv = pd.concat([df_inv, pd.DataFrame([new_d])], ignore_index=True)
+                            guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                            registrar_historial("ALTA", f_sku, f_mod, f_can, 0, f_cos, "Alta")
+                            st.success("Creado")
+                        time.sleep(1)
+                        st.rerun()
 
     # 5. REPORTES
     if t_rep:
