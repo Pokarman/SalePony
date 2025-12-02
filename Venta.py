@@ -44,7 +44,7 @@ st.markdown("""
     div[data-testid="stMetricLabel"] { color: var(--text-color) !important; opacity: 0.8; }
     div[data-testid="stMetricValue"] { color: var(--text-color) !important; font-weight: 700; }
 
-    /* INPUTS Y SELECTBOXES */
+    /* INPUTS Y SELECTBOXES (Corrección de colores) */
     .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div, .stTextArea textarea {
         background-color: var(--secondary-background-color) !important;
         color: var(--text-color) !important;
@@ -278,7 +278,6 @@ else:
         st.markdown(f"### 👋 {st.session_state.nombre_usuario}")
         st.caption(f"Rol: {st.session_state.rol_usuario}")
         
-        # BOTON RESTAURADO
         if st.button("🔄 Actualizar Datos", help="Forzar recarga"):
             st.cache_data.clear()
             st.rerun()
@@ -295,7 +294,7 @@ else:
                 else: st.error(f"Pierdes: ${gan:,.2f}")
 
         with st.expander("💵 Arqueo de Caja"):
-            raw, _, df_full = calcular_stats()
+            raw, _, df_full = calc_stats()
             esperado = 0.0
             if df_full is not None and not df_full.empty:
                 hoy = datetime.now().date()
@@ -422,9 +421,9 @@ else:
                 stock = int(df_inv.at[idx, 'Cantidad'])
                 st.info(f"**{sel['Modelo']}** | Stock: {stock}")
                 
+                # LOGICA STOCK FIX
                 if stock > 0:
                     cq, cp = st.columns(2)
-                    # FIX: El número máximo de input es el stock real
                     q = cq.number_input("Cant.", 1, stock, 1)
                     tot = sel['Precio_Venta'] * q
                     cp.metric("Total", f"${tot:,.2f}")
