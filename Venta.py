@@ -44,7 +44,7 @@ st.markdown("""
     div[data-testid="stMetricLabel"] { color: var(--text-color) !important; opacity: 0.8; }
     div[data-testid="stMetricValue"] { color: var(--text-color) !important; font-weight: 700; }
 
-    /* INPUTS Y SELECTBOXES (Corrección de colores) */
+    /* INPUTS Y SELECTBOXES */
     .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div, .stTextArea textarea {
         background-color: var(--secondary-background-color) !important;
         color: var(--text-color) !important;
@@ -278,6 +278,7 @@ else:
         st.markdown(f"### 👋 {st.session_state.nombre_usuario}")
         st.caption(f"Rol: {st.session_state.rol_usuario}")
         
+        # BOTON RESTAURADO
         if st.button("🔄 Actualizar Datos", help="Forzar recarga"):
             st.cache_data.clear()
             st.rerun()
@@ -421,9 +422,9 @@ else:
                 stock = int(df_inv.at[idx, 'Cantidad'])
                 st.info(f"**{sel['Modelo']}** | Stock: {stock}")
                 
-                # LOGICA STOCK FIX
                 if stock > 0:
                     cq, cp = st.columns(2)
+                    # FIX: El número máximo de input es el stock real
                     q = cq.number_input("Cant.", 1, stock, 1)
                     tot = sel['Precio_Venta'] * q
                     cp.metric("Total", f"${tot:,.2f}")
@@ -448,72 +449,92 @@ else:
             if st.session_state.ultimo_ticket:
                 st.code(st.session_state.ultimo_ticket)
 
-    # 3. INVENTARIO
+    # 3. INVENTARIO (FILTRO RESTAURADO)
     with t_inv:
         st.markdown("#### 📦 Inventario")
+        ver_bajo = st.checkbox("Ver solo stock bajo") # RESTAURADO
+        
+        df_show = df_inv.copy()
+        if ver_bajo:
+            df_show = df_show[df_show['Cantidad'] <= df_show['Stock_Minimo']]
+            
         st.dataframe(
-            df_inv[['SKU', 'Modelo', 'Cantidad', 'Stock_Minimo', 'Precio_ML', 'Precio_Amazon']], 
+            df_show[['SKU', 'Modelo', 'Cantidad', 'Stock_Minimo', 'Precio_ML', 'Precio_Amazon']], 
             use_container_width=True,
             column_config={
                 "Cantidad": st.column_config.ProgressColumn("Stock Real", format="%d", min_value=0, max_value=int(df_inv['Cantidad'].max()))
             }
         )
 
-    # 4. ADMIN
+    # 4. ADMIN (COMPLETO RESTAURADO)
     if t_adm:
         with t_adm:
             st.markdown("#### 🛠️ Gestión")
-            act = st.radio("Acción", ["Nuevo", "Editar Stock"], horizontal=True)
+            act = st.radio("Acción", ["Nuevo", "Clonar", "Editar Info", "Ajuste Stock"], horizontal=True) # RESTAURADO
             d_sku, d_mod, d_qty, d_min, d_cost, d_pv = "", "", 10, 5, 0.0, 0.0
+            d_cat, d_link, d_ml, d_amz = "Fundas", "", 0.0, 0.0 # RESTAURADO
             idx_e = -1
             
-            if act == "Editar Stock" and not df_inv.empty:
-                s = st.selectbox("Editar:", df_inv['Modelo'].unique())
-                idx_e = df_inv[df_inv['Modelo']==s].index[0]
+            if act != "Nuevo" and not df_inv.empty:
+                s_ed = st.selectbox("Seleccionar:", df_inv['Modelo'].unique())
+                idx_e = df_inv[df_inv['Modelo']==s_ed].index[0]
                 r = df_inv.iloc[idx_e]
-                d_sku, d_mod = r['SKU'], r['Modelo']
-                d_qty = int(r['Cantidad'])
-                d_min = int(r['Stock_Minimo']) 
+                d_sku = "" if act=="Clonar" else r['SKU']
+                d_mod = r['Modelo'] + (" (Copia)" if act=="Clonar" else "")
+                d_cat, d_qty = r['Categoria'], int(r['Cantidad'])
+                d_min = int(r['Stock_Minimo'])
                 d_cost = float(r['Costo_Unitario'])
                 d_pv = float(r['Precio_Venta'])
+                d_link, d_ml, d_amz = r['Link_AliExpress'], float(r['Precio_ML']), float(r['Precio_Amazon'])
 
             with st.form("adm"):
                 c1, c2 = st.columns(2)
-                f_sku = c1.text_input("SKU", d_sku, disabled=(act=="Editar Stock"))
-                f_mod = c2.text_input("Modelo", d_mod, disabled=(act=="Editar Stock"))
-                c3, c4 = st.columns(2)
-                f_qty = c3.number_input("Stock Físico", value=d_qty)
-                f_min = c4.number_input("Stock Mínimo", value=d_min) 
-                c5, c6 = st.columns(2)
-                f_cos = c5.number_input("Costo", value=d_cost)
-                f_pv = c6.number_input("Precio Venta", value=d_pv)
+                f_sku = c1.text_input("SKU", d_sku, disabled=(act in ["Editar Info", "Ajuste Stock"]))
+                f_mod = c2.text_input("Modelo", d_mod, disabled=(act=="Ajuste Stock"))
+                
+                c3, c4, c5 = st.columns(3)
+                f_cat = c3.selectbox("Cat.", ["Fundas", "Micas", "Cargadores", "Cables", "Otro"], index=0) # RESTAURADO
+                f_qty = c4.number_input("Stock", value=d_qty)
+                f_min = c5.number_input("Mínimo", value=d_min) 
+                
+                c6, c7, c8 = st.columns(3)
+                f_cos = c6.number_input("Costo", value=d_cost)
+                f_pv = c7.number_input("P. Venta", value=d_pv)
+                f_lnk = c8.text_input("Link Ali", d_link) # RESTAURADO
+                
+                c9, c10 = st.columns(2)
+                f_ml = c9.number_input("Precio ML", value=d_ml) # RESTAURADO
+                f_amz = c10.number_input("Precio Amz", value=d_amz) # RESTAURADO
                 
                 if st.form_submit_button("Guardar"):
-                    if act == "Editar Stock" and idx_e != -1:
-                        df_inv.at[idx_e, 'Cantidad'] = f_qty
-                        df_inv.at[idx_e, 'Stock_Minimo'] = f_min
-                        df_inv.at[idx_e, 'Costo_Unitario'] = f_cos
-                        df_inv.at[idx_e, 'Precio_Venta'] = f_pv
-                        guardar_df(df_inv, ARCHIVO_INVENTARIO)
-                        registrar_historial("EDICION", d_sku, d_mod, abs(f_qty-d_qty), 0, 0, "Ajuste Admin")
-                        st.success("Actualizado")
+                    if not f_mod: st.error("Falta nombre")
+                    else:
+                        f_mod = sanitizar_texto(f_mod)
+                        f_sku = sanitizar_texto(f_sku)
+                        if not f_sku: f_sku = f"ACC-{str(uuid.uuid4())[:6].upper()}"
+                        new_d = {'SKU': f_sku, 'Categoria': f_cat, 'Modelo': f_mod, 'Tipo': 'Imp', 'Cantidad': f_qty, 'Stock_Minimo': f_min, 'Costo_Unitario': f_cos, 'Precio_Venta': f_pv, 'Link_AliExpress': f_lnk, 'Precio_ML': f_ml, 'Precio_Amazon': f_amz}
+                        
+                        if act in ["Editar Info", "Ajuste Stock"] and idx_e != -1:
+                            diff = f_qty - df_inv.at[idx_e, 'Cantidad']
+                            for k,v in new_d.items(): df_inv.at[idx_e, k] = v
+                            guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                            registrar_historial("EDICION", f_sku, f_mod, abs(diff), 0, 0, "Ajuste Admin")
+                            st.success("Actualizado")
+                        else:
+                            df_inv = pd.concat([df_inv, pd.DataFrame([new_d])], ignore_index=True)
+                            guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                            registrar_historial("ALTA", f_sku, f_mod, f_qty, 0, f_cos, "Alta")
+                            st.success("Creado")
                         time.sleep(1)
                         st.rerun()
-                    else:
-                        if not f_sku: f_sku = f"GEN-{str(uuid.uuid4())[:4]}"
-                        new = {'SKU':f_sku, 'Modelo':f_mod, 'Cantidad':f_qty, 'Stock_Minimo':f_min, 'Costo_Unitario':f_cos, 'Precio_Venta':f_pv, 'Categoria':'Gral', 'Tipo':'Imp', 'Link_AliExpress':'', 'Precio_ML':0, 'Precio_Amazon':0}
-                        df_inv = pd.concat([df_inv, pd.DataFrame([new])], ignore_index=True)
-                        guardar_df(df_inv, ARCHIVO_INVENTARIO)
-                        st.success("Creado")
-                        st.rerun()
 
-    # 5. REPORTES
+    # 5. REPORTES (CON DESCARGA RESTAURADA)
     if t_rep:
         with t_rep:
             st.markdown("#### 📈 Finanzas")
+            freq = st.radio("Ver por:", ["Día", "Mes"], horizontal=True)
             if df_full is not None and not df_full.empty:
                 df_c = df_full.copy()
-                freq = st.radio("Ver por:", ["Día", "Mes"], horizontal=True)
                 grp = df_c['Fecha_Dt'].dt.date if freq=="Día" else df_c['Fecha_Dt'].dt.strftime('%Y-%m')
                 
                 # TABLA FLUJO
