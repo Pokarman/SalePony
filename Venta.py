@@ -231,7 +231,7 @@ def sincronizar(df_inv):
                 nuevos.append({'Plataforma': 'Mercado Libre', 'SKU': p['SKU'], 'Modelo': p['Modelo'], 'Cantidad': 1})
     return nuevos
 
-def calcular_stats():
+def calc_stats():
     if not os.path.exists(ARCHIVO_HISTORIAL): return None, None, pd.DataFrame()
     try: df = pd.read_csv(ARCHIVO_HISTORIAL); df['Fecha_Dt'] = pd.to_datetime(df['Fecha'])
     except: return None, None, pd.DataFrame()
@@ -273,7 +273,7 @@ else:
     df_inv = cargar_inventario()
     df_ped = cargar_csv(ARCHIVO_PEDIDOS, ['ID_Pedido','Fecha','SKU','Modelo','Cantidad','Plataforma','Estado'])
     
-    # --- SIDEBAR (CON TODAS LAS FUNCIONES RESTAURADAS) ---
+    # --- SIDEBAR ---
     with st.sidebar:
         st.markdown(f"### 👋 {st.session_state.nombre_usuario}")
         st.caption(f"Rol: {st.session_state.rol_usuario}")
@@ -284,7 +284,6 @@ else:
             
         st.divider()
         
-        # 1. IMPORTACIÓN
         with st.expander("🇨🇳 Importación"):
             c = st.number_input("Costo China", 0.0, step=10.0)
             e = st.number_input("Envío", 0.0, step=10.0)
@@ -294,7 +293,6 @@ else:
                 if gan > 0: st.success(f"Ganas: ${gan:,.2f}")
                 else: st.error(f"Pierdes: ${gan:,.2f}")
 
-        # 2. ARQUEO DE CAJA (RESTAURADO)
         with st.expander("💵 Arqueo de Caja"):
             raw, _, df_full = calcular_stats()
             esperado = 0.0
@@ -309,7 +307,6 @@ else:
                 if diff == 0: st.success("✅ Correcto")
                 else: st.warning(f"Diferencia: ${diff:,.2f}")
 
-        # 3. APIs (RESTAURADO)
         if st.session_state.rol_usuario == "Administrador":
             with st.expander("🔌 APIs"):
                 ml_token_env = os.environ.get("ML_TOKEN", "")
@@ -334,7 +331,6 @@ else:
                     st.rerun()
                 else: st.info("Todo al día")
 
-        # 4. SOPORTE
         with st.expander("📧 Soporte", expanded=False):
             key_din = f"txt_soporte_{st.session_state.contador_soporte}"
             msg_err = st.text_area("Mensaje:", key=key_din)
@@ -353,6 +349,7 @@ else:
             with st.expander("⚠️ Reset", expanded=False):
                 if st.button("Borrar Datos"):
                     if os.path.exists(ARCHIVO_HISTORIAL): os.remove(ARCHIVO_HISTORIAL)
+                    if os.path.exists(ARCHIVO_PEDIDOS): os.remove(ARCHIVO_PEDIDOS)
                     st.cache_data.clear()
                     st.rerun()
 
@@ -362,7 +359,7 @@ else:
     # KPIs
     pend = df_ped[df_ped['Estado']=='Pendiente'].shape[0]
     low = df_inv[df_inv['Cantidad'] <= df_inv['Stock_Minimo']].shape[0]
-    raw, _, df_full = calcular_stats()
+    raw, _, df_full = calc_stats()
     vhoy = 0
     if df_full is not None and not df_full.empty:
         vhoy = df_full[(df_full['Fecha_Dt'].dt.date == datetime.now().date()) & (df_full['Accion'].str.contains('VENTA'))]['Monto_Venta'].sum()
@@ -391,15 +388,15 @@ else:
                     c1, c2, c3, c4 = st.columns([0.5, 3, 2, 1.5])
                     c1.write("📦")
                     c2.markdown(f"**{r['Modelo']}**")
-                    c2.caption(f"SKU: {r['SKU']} | Cant: **x{r['Cantidad']}**")
-                    c3.write(f"ID: {r['ID_Pedido']}")
+                    c2.caption(f"SKU: {r['SKU']}")
+                    c3.write(f"x{r['Cantidad']}")
                     if c4.button("Enviar", key=r['ID_Pedido']):
                         df_ped.loc[df_ped['ID_Pedido']==r['ID_Pedido'], 'Estado']='Enviado'
                         guardar_df(df_ped, ARCHIVO_PEDIDOS)
                         st.rerun()
                     st.divider()
 
-    # 2. POS (CON STOCK FIX Y UI)
+    # 2. POS (STOCK FIXED)
     with t_pos:
         c1, c2 = st.columns([2, 1])
         with c1:
@@ -462,7 +459,7 @@ else:
             }
         )
 
-    # 4. ADMIN (CON TODAS LAS OPCIONES)
+    # 4. ADMIN
     if t_adm:
         with t_adm:
             st.markdown("#### 🛠️ Gestión")
@@ -476,7 +473,7 @@ else:
                 r = df_inv.iloc[idx_e]
                 d_sku, d_mod = r['SKU'], r['Modelo']
                 d_qty = int(r['Cantidad'])
-                d_min = int(r['Stock_Minimo'])
+                d_min = int(r['Stock_Minimo']) 
                 d_cost = float(r['Costo_Unitario'])
                 d_pv = float(r['Precio_Venta'])
 
@@ -486,7 +483,7 @@ else:
                 f_mod = c2.text_input("Modelo", d_mod, disabled=(act=="Editar Stock"))
                 c3, c4 = st.columns(2)
                 f_qty = c3.number_input("Stock Físico", value=d_qty)
-                f_min = c4.number_input("Stock Mínimo", value=d_min)
+                f_min = c4.number_input("Stock Mínimo", value=d_min) 
                 c5, c6 = st.columns(2)
                 f_cos = c5.number_input("Costo", value=d_cost)
                 f_pv = c6.number_input("Precio Venta", value=d_pv)
@@ -510,13 +507,13 @@ else:
                         st.success("Creado")
                         st.rerun()
 
-    # 5. REPORTES (CON DETALLE FINANCIERO RESTAURADO)
+    # 5. REPORTES
     if t_rep:
         with t_rep:
             st.markdown("#### 📈 Finanzas")
-            freq = st.radio("Ver por:", ["Día", "Mes"], horizontal=True)
             if df_full is not None and not df_full.empty:
                 df_c = df_full.copy()
+                freq = st.radio("Ver por:", ["Día", "Mes"], horizontal=True)
                 grp = df_c['Fecha_Dt'].dt.date if freq=="Día" else df_c['Fecha_Dt'].dt.strftime('%Y-%m')
                 
                 # TABLA FLUJO
@@ -526,6 +523,15 @@ else:
                 tab['Neto'] = tab['Ventas'] - tab['Compras']
                 st.dataframe(tab.style.format("${:,.2f}"), use_container_width=True)
                 
+                # BOTÓN DESCARGA RESTAURADO
+                csv = tab.to_csv().encode('utf-8')
+                st.download_button(
+                    label="📥 Descargar Reporte en Excel",
+                    data=csv,
+                    file_name='reporte_financiero.csv',
+                    mime='text/csv',
+                )
+
                 st.divider()
                 
                 # SECCION RENTABILIDAD
