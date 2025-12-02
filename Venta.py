@@ -12,7 +12,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 
 # ==========================================
-# 1. CONFIGURACIÓN VISUAL (CORREGIDA)
+# 1. CONFIGURACIÓN VISUAL "ELITE DARK GOLD"
 # ==========================================
 st.set_page_config(page_title="SalePony Elite", page_icon="🦄", layout="wide")
 
@@ -121,6 +121,7 @@ if 'sesion_iniciada' not in st.session_state:
     st.session_state.sesion_iniciada = False
     st.session_state.rol_usuario = None
     st.session_state.nombre_usuario = None
+    st.session_state.usuario_id = None
     st.session_state.ultimo_ticket = ""
     if 'contador_soporte' not in st.session_state: st.session_state.contador_soporte = 0
 
@@ -166,7 +167,7 @@ def guardar_df(df, archivo):
             try: pd.read_csv(archivo).to_csv(f"respaldos/{os.path.basename(archivo).split('.')[0]}_{ts}.csv", index=False)
             except: pass
         df.to_csv(archivo, index=False)
-        st.cache_data.clear()
+        st.cache_data.clear() # Limpiar caché para forzar actualización visual
     except: pass
 
 def registrar_historial(accion, sku, modelo, cant, precio=0, costo=0, notas=""):
@@ -247,6 +248,12 @@ else:
     with st.sidebar:
         st.markdown(f"### 👋 {st.session_state.nombre_usuario}")
         st.caption(f"Rol: {st.session_state.rol_usuario}")
+        
+        # BOTÓN DE ACTUALIZACIÓN MANUAL (Nuevo Requerimiento)
+        if st.button("🔄 Actualizar Datos", help="Presiona para recargar todo el sistema"):
+            st.cache_data.clear()
+            st.rerun()
+            
         st.divider()
         
         with st.expander("🇨🇳 Importación"):
@@ -367,7 +374,7 @@ else:
                 if st.button("COBRAR", type="primary", use_container_width=True):
                     # Candado lógico final
                     if q > stock:
-                        st.error(f"⛔ Error: Solo hay {stock} piezas.")
+                        st.error(f"⛔ Error: Solo hay {stock} piezas. Actualiza la página.")
                     else:
                         df_inv.at[idx, 'Cantidad'] -= q
                         guardar_df(df_inv, ARCHIVO_INVENTARIO)
@@ -408,7 +415,7 @@ else:
                 d_sku, d_mod = r['SKU'], r['Modelo']
                 # CORRECCIÓN: Ahora leemos el Stock Mínimo para que no se resetee
                 d_qty = int(r['Cantidad'])
-                d_min = int(r['Stock_Minimo']) # <-- ESTO FALTABA
+                d_min = int(r['Stock_Minimo']) 
                 d_cost = float(r['Costo_Unitario'])
                 d_pv = float(r['Precio_Venta'])
 
