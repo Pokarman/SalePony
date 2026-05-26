@@ -657,7 +657,7 @@ else:
                     with st.form("crm_form", clear_on_submit=True):
                         tipo = st.radio("Clasificación:", ["Cliente", "Proveedor"], horizontal=True)
                         nombre = st.text_input("Nombre / Empresa")
-                        contacto = st.text_input("Teléfono (Ej. 6676562718) o Correo")
+                        contacto = st.text_input("Teléfono (Ej. 5576562718) o Correo")
                         nota = st.text_area("Nota o Petición")
                         if st.form_submit_button("Guardar"):
                             if nombre and contacto:
@@ -737,7 +737,7 @@ else:
                     st.write("No hay mensajes nuevos en tu bandeja.")
                     # Botón para simular entrada de datos por un Webhook externo
                     if st.button("Simular mensaje entrante (Prueba)"):
-                        nuevo_msg = {'Fecha': datetime.now().strftime("%Y-%m-%d %H:%M"), 'Plataforma': 'WhatsApp', 'Remitente': '6676562718', 'Mensaje': 'Hola, ¿tienen disponibilidad de la talla 27?'}
+                        nuevo_msg = {'Fecha': datetime.now().strftime("%Y-%m-%d %H:%M"), 'Plataforma': 'WhatsApp', 'Remitente': '5576562718', 'Mensaje': 'Hola, ¿tienen disponibilidad de la talla 27?'}
                         df_inbox = pd.concat([df_inbox, pd.DataFrame([nuevo_msg])], ignore_index=True)
                         df_inbox.to_csv(ARCHIVO_INBOX, index=False)
                         st.rerun()
