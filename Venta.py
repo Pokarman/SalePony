@@ -54,7 +54,8 @@ ARCHIVO_HISTORIAL = 'tr_historial.csv'
 ARCHIVO_PEDIDOS = 'tr_pedidos.csv'
 ARCHIVO_USUARIOS = 'tr_usuarios.csv' 
 ARCHIVO_CONFIG_API = 'tr_config_apis.csv'
-ARCHIVO_CRM = 'tr_crm.csv' # Archivo Nuevo para CRM
+ARCHIVO_CRM = 'tr_crm.csv' 
+ARCHIVO_INBOX = 'tr_inbox.csv' # Nuevo archivo para Bandeja de Entrada
 
 # ==========================================
 # 2. SEGURIDAD Y DATOS
@@ -117,11 +118,9 @@ def cargar_csv(archivo, columnas):
     except: return pd.DataFrame(columns=columnas)
 
 def cargar_inventario():
-    # SE AGREGÓ: Talla y Genero sin borrar nada tuyo
     cols = ['SKU', 'Categoria', 'Genero', 'Modelo', 'Talla', 'Tipo', 'Cantidad', 'Stock_Minimo', 'Costo_Unitario', 'Precio_Venta', 'Proveedor', 'Precio_ML', 'Precio_Amazon']
     df = cargar_csv(ARCHIVO_INVENTARIO, cols)
     if df.empty:
-        # Catálogo por defecto actualizado
         datos = [
             {'SKU': 'NK-AJ1-RED-27', 'Categoria': 'Calzado', 'Genero': 'Hombre', 'Modelo': 'Nike Air Jordan 1 Rojo', 'Talla': '27', 'Tipo': 'Mayorista', 'Cantidad': 12, 'Stock_Minimo': 3, 'Costo_Unitario': 1200.0, 'Precio_Venta': 2500.0, 'Proveedor': 'Distribuidor Nacional', 'Precio_ML': 2800.0, 'Precio_Amazon': 2750.0},
             {'SKU': 'AD-ULB-BLK-26', 'Categoria': 'Calzado', 'Genero': 'Mujer', 'Modelo': 'Adidas Ultraboost Negro', 'Talla': '26', 'Tipo': 'Mayorista', 'Cantidad': 8, 'Stock_Minimo': 2, 'Costo_Unitario': 1500.0, 'Precio_Venta': 3200.0, 'Proveedor': 'Importación Directa', 'Precio_ML': 3500.0, 'Precio_Amazon': 3400.0},
@@ -150,7 +149,7 @@ def registrar_historial(accion, sku, modelo, cant, precio=0, costo=0, notas="", 
         'Monto_Venta': float(precio)*int(cant) if "VENTA" in accion else 0,
         'Costo_Venta': float(costo)*int(cant) if "VENTA" in accion else 0,
         'Monto_Gasto': float(costo)*int(cant) if "ALTA" in accion or "ENTRADA" in accion else 0,
-        'Notas': notas, 'Metodo_Pago': metodo_pago # SE AGREGÓ: Método de Pago
+        'Notas': notas, 'Metodo_Pago': metodo_pago 
     }
     df_h = pd.DataFrame([nuevo])
     try: df_h.to_csv(ARCHIVO_HISTORIAL, mode='a', header=not os.path.exists(ARCHIVO_HISTORIAL), index=False); st.cache_data.clear()
@@ -195,7 +194,7 @@ def calc_stats():
     try: df = pd.read_csv(ARCHIVO_HISTORIAL); df['Fecha_Dt'] = pd.to_datetime(df['Fecha'])
     except: return None, None, pd.DataFrame()
     if 'Monto_Gasto' not in df.columns: df['Monto_Gasto'] = 0.0
-    if 'Metodo_Pago' not in df.columns: df['Metodo_Pago'] = "Efectivo" # Compatibilidad
+    if 'Metodo_Pago' not in df.columns: df['Metodo_Pago'] = "Efectivo"
     return df, None, df
 
 # ==========================================
@@ -231,9 +230,8 @@ if not st.session_state.sesion_iniciada:
 else:
     df_inv = cargar_inventario()
     df_ped = cargar_csv(ARCHIVO_PEDIDOS, ['ID_Pedido','Fecha','SKU','Modelo','Cantidad','Plataforma','Estado'])
-    
-    # Pre-cargamos tus datos en el CRM si está vacío para probar el Action Center
     df_crm = cargar_csv(ARCHIVO_CRM, ['Tipo', 'Nombre', 'Contacto', 'Mensaje_Nota', 'Fecha'])
+    
     if df_crm.empty:
         df_crm = pd.DataFrame([{'Tipo': 'Proveedor', 'Nombre': 'Alan (Soporte Técnico)', 'Contacto': '6676562718 / alanbdb64@gmail.com', 'Mensaje_Nota': 'Contacto principal del sistema.', 'Fecha': datetime.now().strftime("%Y-%m-%d")}])
         guardar_df(df_crm, ARCHIVO_CRM)
@@ -255,11 +253,10 @@ else:
             e = st.number_input("Gastos Logísticos ($)", 0.0, step=10.0)
             v = st.number_input("Precio de Venta ($)", 0.0, step=10.0)
             if st.button("Calcular Utilidad"):
-                gan = v - (c + e) - (v * 0.15) # 15% estimación de comisión
+                gan = v - (c + e) - (v * 0.15) 
                 if gan > 0: st.success(f"Utilidad Proyectada: ${gan:,.2f}")
                 else: st.error(f"Pérdida Proyectada: ${gan:,.2f}")
 
-        # MEJORA: Arqueo de caja desglosado pero manteniendo tu calculadora de diferencia
         with st.expander("💵 Arqueo de Caja"):
             raw, _, df_full = calc_stats()
             esperado = 0.0
@@ -271,7 +268,7 @@ else:
                 efectivo = ventas_hoy[ventas_hoy['Metodo_Pago'] == 'Efectivo']['Monto_Venta'].sum()
                 tarjeta = ventas_hoy[ventas_hoy['Metodo_Pago'] == 'Tarjeta']['Monto_Venta'].sum()
                 transf = ventas_hoy[ventas_hoy['Metodo_Pago'] == 'Transferencia']['Monto_Venta'].sum()
-                esperado = efectivo # La caja física solo debe cuadrar el efectivo
+                esperado = efectivo 
                 
                 st.write(f"💵 Efectivo en Sistema: **${efectivo:,.2f}**")
                 st.write(f"💳 Tarjetas: ${tarjeta:,.2f}")
@@ -335,7 +332,6 @@ else:
     # --- ÁREA DE TRABAJO PRINCIPAL ---
     st.markdown("<h2 style='margin-bottom: 0;'>👟 Panel de Control - Tenis Rey Sport</h2>", unsafe_allow_html=True)
     
-    # CÁLCULO DE KPIs INTÁCTO
     pend = df_ped[df_ped['Estado']=='Pendiente'].shape[0]
     low = df_inv[df_inv['Cantidad'] <= df_inv['Stock_Minimo']].shape[0]
     valor_inventario = (df_inv['Cantidad'] * df_inv['Costo_Unitario']).sum() if not df_inv.empty else 0.0
@@ -353,7 +349,6 @@ else:
 
     st.divider()
 
-    # PESTAÑAS DE NAVEGACIÓN (Se agrega CRM al final)
     tabs = st.tabs(["📦 ÓRDENES E-COMMERCE", "🛒 Vender o Salida de Mercancía", "👟 INVENTARIO", "📝 INGRESAR O EDITAR CATÁLOGO", "📊 REPORTES", "📞 CRM & MENSAJES"]) if st.session_state.rol_usuario == "Administrador" else st.tabs(["📦 ÓRDENES", "🛒 TPV", "👟 INVENTARIO", "📞 CRM & MENSAJES"])
     t_ped, t_pos, t_inv = tabs[0], tabs[1], tabs[2]
     
@@ -397,7 +392,6 @@ else:
                     if not fn.empty: sel = fn.iloc[0]
             
             if sel is None and not df_inv.empty:
-                # Se incorpora Talla en la visualización
                 op = df_inv[df_inv['Cantidad']>0].apply(lambda x: f"{x['Modelo']} (Talla: {x.get('Talla','')}) | {x['SKU']}", axis=1)
                 s = st.selectbox("Selección desde Catálogo:", op, index=None, placeholder="Elija un producto...", label_visibility="collapsed")
                 if s: sel = df_inv[df_inv['SKU'] == s.split(" | ")[1]].iloc[0]
@@ -407,7 +401,6 @@ else:
                 stock = int(df_inv.at[idx, 'Cantidad'])
                 stock_min = int(df_inv.at[idx, 'Stock_Minimo'])
                 
-                # MEJORA: Alerta de Stock
                 if stock <= stock_min:
                     st.warning(f"⚠️ **{sel['Modelo']}** | Inventario Físico: {stock} unidades (¡Nivel Bajo!)")
                 else:
@@ -450,7 +443,6 @@ else:
             df_show = df_show[df_show['Cantidad'] <= df_show['Stock_Minimo']]
             
         st.dataframe(
-            # Se agrega Genero y Talla a la vista sin romper tus formatos
             df_show[['SKU', 'Categoria', 'Genero', 'Modelo', 'Talla', 'Cantidad', 'Costo_Unitario', 'Precio_Venta']], 
             use_container_width=True,
             column_config={
@@ -492,7 +484,7 @@ else:
             act = st.radio("Tipo de Operación", ["Registro Nuevo", "Duplicar Registro", "Modificar Datos", "Ajuste de Existencias"], horizontal=True)
             d_sku, d_mod, d_qty, d_min, d_cost, d_pv = "", "", 1, 2, 0.0, 0.0
             d_cat, d_link, d_ml, d_amz = "Calzado", "", 0.0, 0.0 
-            d_talla, d_gen = "", "Unisex" # MEJORA: Valores por defecto
+            d_talla, d_gen = "", "Unisex"
             idx_e = -1
             
             if act != "Registro Nuevo" and not df_inv.empty:
@@ -517,7 +509,6 @@ else:
                 
                 c3, c_talla, c_gen = st.columns(3)
                 f_cat = c3.selectbox("Línea de Producto", ["Calzado", "Ropa", "Accesorios"], index=["Calzado", "Ropa", "Accesorios"].index(d_cat) if d_cat in ["Calzado", "Ropa", "Accesorios"] else 0) 
-                # MEJORA: Campos integrados en tu formulario
                 f_talla = c_talla.text_input("Número / Talla", d_talla)
                 f_gen = c_gen.selectbox("Género", ["Hombre", "Mujer", "Unisex", "Niños"], index=["Hombre", "Mujer", "Unisex", "Niños"].index(d_gen) if d_gen in ["Hombre", "Mujer", "Unisex", "Niños"] else 2)
                 
@@ -541,7 +532,6 @@ else:
                         f_mod = sanitizar_texto(f_mod)
                         f_sku = sanitizar_texto(f_sku)
                         if not f_sku: f_sku = f"TR-{str(uuid.uuid4())[:6].upper()}"
-                        # MEJORA: Diccionario actualizado
                         new_d = {'SKU': f_sku, 'Categoria': f_cat, 'Genero': f_gen, 'Modelo': f_mod, 'Talla': f_talla, 'Tipo': 'Retail', 'Cantidad': f_qty, 'Stock_Minimo': f_min, 'Costo_Unitario': f_cos, 'Precio_Venta': f_pv, 'Proveedor': f_lnk, 'Precio_ML': f_ml, 'Precio_Amazon': f_amz}
                         
                         if act in ["Modificar Datos", "Ajuste de Existencias"] and idx_e != -1:
@@ -610,7 +600,6 @@ else:
                     com = vs.groupby('Usuario')['Monto_Venta'].sum().reset_index()
                     com['Comisión Base (3%)'] = com['Monto_Venta'] * 0.03
                     
-                    # MEJORA: Sistema de Bonos
                     meta = st.number_input("Meta de Venta para Bono Extra ($):", value=10000)
                     bono_pct = st.number_input("Porcentaje de Bono sobre excedente (%):", value=5.0) / 100
                     com['Bono Extra'] = com.apply(lambda x: (x['Monto_Venta'] - meta) * bono_pct if x['Monto_Venta'] >= meta else 0, axis=1)
@@ -621,78 +610,128 @@ else:
     # 6. CRM Y CENTRO DE ENVÍO
     if t_crm:
         with t_crm:
-            c_form, c_action = st.columns([1, 1])
+            crm_tabs = st.tabs(["👥 Directorio de Contactos", "💬 Bandeja de Entrada (Chats)", "⚙️ Configuración APIs (Webhooks)"])
             
-            with c_form:
-                st.markdown("#### 📖 Guardar Contacto")
-                with st.form("crm_form", clear_on_submit=True):
-                    tipo = st.radio("Clasificación:", ["Cliente", "Proveedor"], horizontal=True)
-                    nombre = st.text_input("Nombre / Empresa")
-                    contacto = st.text_input("Teléfono (Ej. 6676562718) o Correo")
-                    nota = st.text_area("Nota o Petición")
-                    if st.form_submit_button("Guardar"):
-                        if nombre and contacto:
-                            new_crm = {'Tipo': tipo, 'Nombre': nombre, 'Contacto': contacto, 'Mensaje_Nota': nota, 'Fecha': datetime.now().strftime("%Y-%m-%d")}
-                            df_crm = pd.concat([df_crm, pd.DataFrame([new_crm])], ignore_index=True)
-                            guardar_df(df_crm, ARCHIVO_CRM)
-                            st.success("Guardado.")
-                            time.sleep(0.5); st.rerun()
-
-            with c_action:
-                st.markdown("#### 🚀 Gestión y Acción Rápida")
-                if not df_crm.empty:
-                    contacto_sel = st.selectbox("Seleccione a quién contactar / editar:", df_crm['Nombre'].unique())
-                    datos_contacto = df_crm[df_crm['Nombre'] == contacto_sel].iloc[0]
-                    
-                    accion_crm = st.radio("Acción:", ["Contactar", "Editar", "Eliminar"], horizontal=True)
-                    
-                    if accion_crm == "Contactar":
-                        num_correo = str(datos_contacto['Contacto']).strip()
-                        st.info(f"**Contacto:** {num_correo}\n\n**Nota:** {datos_contacto['Mensaje_Nota']}")
-                        
-                        msg_pred = f"Hola {contacto_sel}, te contactamos de la gerencia de Tenis Rey."
-                        num_limpio = ''.join(filter(str.isdigit, num_correo))
-                        
-                        if num_limpio and len(num_limpio) >= 10:
-                            link_wa = f"https://wa.me/52{num_limpio}?text={msg_pred.replace(' ', '%20')}"
-                            st.link_button("🟢 Enviar WhatsApp Web", link_wa, use_container_width=True)
-                        
-                        if "@" in num_correo and "." in num_correo:
-                            link_mail = f"mailto:{num_correo}?subject=Seguimiento%20Tenis%20Rey&body={msg_pred.replace(' ', '%20')}"
-                            st.link_button("📧 Redactar Correo Electrónico", link_mail, use_container_width=True)
-                    
-                    elif accion_crm == "Editar":
-                        with st.form("edit_crm_form"):
-                            e_tipo = st.radio("Clasificación:", ["Cliente", "Proveedor"], index=0 if datos_contacto['Tipo']=='Cliente' else 1, horizontal=True)
-                            e_contacto = st.text_input("Teléfono o Correo", value=datos_contacto['Contacto'])
-                            e_nota = st.text_area("Nota o Petición", value=datos_contacto['Mensaje_Nota'])
-                            if st.form_submit_button("Guardar Cambios"):
-                                idx_c = df_crm[df_crm['Nombre'] == contacto_sel].index[0]
-                                df_crm.at[idx_c, 'Tipo'] = e_tipo
-                                df_crm.at[idx_c, 'Contacto'] = e_contacto
-                                df_crm.at[idx_c, 'Mensaje_Nota'] = e_nota
+            # --- Pestaña 1: Directorio (Lo que ya tenías) ---
+            with crm_tabs[0]:
+                c_form, c_action = st.columns([1, 1])
+                
+                with c_form:
+                    st.markdown("#### 📖 Guardar Contacto")
+                    with st.form("crm_form", clear_on_submit=True):
+                        tipo = st.radio("Clasificación:", ["Cliente", "Proveedor"], horizontal=True)
+                        nombre = st.text_input("Nombre / Empresa")
+                        contacto = st.text_input("Teléfono (Ej. 6676562718) o Correo")
+                        nota = st.text_area("Nota o Petición")
+                        if st.form_submit_button("Guardar"):
+                            if nombre and contacto:
+                                new_crm = {'Tipo': tipo, 'Nombre': nombre, 'Contacto': contacto, 'Mensaje_Nota': nota, 'Fecha': datetime.now().strftime("%Y-%m-%d")}
+                                df_crm = pd.concat([df_crm, pd.DataFrame([new_crm])], ignore_index=True)
                                 guardar_df(df_crm, ARCHIVO_CRM)
-                                st.success("Contacto actualizado.")
+                                st.success("Guardado.")
                                 time.sleep(0.5); st.rerun()
-                                
-                    elif accion_crm == "Eliminar":
-                        st.warning(f"¿Desea eliminar a {contacto_sel} permanentemente?")
-                        if st.button("Confirmar Eliminación", type="primary"):
-                            df_crm = df_crm[df_crm['Nombre'] != contacto_sel]
-                            guardar_df(df_crm, ARCHIVO_CRM)
-                            st.success("Contacto eliminado.")
-                            time.sleep(0.5); st.rerun()
+
+                with c_action:
+                    st.markdown("#### 🚀 Gestión y Acción Rápida")
+                    if not df_crm.empty:
+                        contacto_sel = st.selectbox("Seleccione a quién contactar / editar:", df_crm['Nombre'].unique())
+                        datos_contacto = df_crm[df_crm['Nombre'] == contacto_sel].iloc[0]
+                        
+                        accion_crm = st.radio("Acción:", ["Contactar", "Editar", "Eliminar"], horizontal=True)
+                        
+                        if accion_crm == "Contactar":
+                            num_correo = str(datos_contacto['Contacto']).strip()
+                            st.info(f"**Contacto:** {num_correo}\n\n**Nota:** {datos_contacto['Mensaje_Nota']}")
+                            
+                            msg_pred = f"Hola {contacto_sel}, te contactamos de la gerencia de Tenis Rey."
+                            num_limpio = ''.join(filter(str.isdigit, num_correo))
+                            
+                            if num_limpio and len(num_limpio) >= 10:
+                                link_wa = f"https://wa.me/52{num_limpio}?text={msg_pred.replace(' ', '%20')}"
+                                st.link_button("🟢 Enviar WhatsApp Web", link_wa, use_container_width=True)
+                            
+                            if "@" in num_correo and "." in num_correo:
+                                link_mail = f"mailto:{num_correo}?subject=Seguimiento%20Tenis%20Rey&body={msg_pred.replace(' ', '%20')}"
+                                st.link_button("📧 Redactar Correo Electrónico", link_mail, use_container_width=True)
+                        
+                        elif accion_crm == "Editar":
+                            with st.form("edit_crm_form"):
+                                e_tipo = st.radio("Clasificación:", ["Cliente", "Proveedor"], index=0 if datos_contacto['Tipo']=='Cliente' else 1, horizontal=True)
+                                e_contacto = st.text_input("Teléfono o Correo", value=datos_contacto['Contacto'])
+                                e_nota = st.text_area("Nota o Petición", value=datos_contacto['Mensaje_Nota'])
+                                if st.form_submit_button("Guardar Cambios"):
+                                    idx_c = df_crm[df_crm['Nombre'] == contacto_sel].index[0]
+                                    df_crm.at[idx_c, 'Tipo'] = e_tipo
+                                    df_crm.at[idx_c, 'Contacto'] = e_contacto
+                                    df_crm.at[idx_c, 'Mensaje_Nota'] = e_nota
+                                    guardar_df(df_crm, ARCHIVO_CRM)
+                                    st.success("Contacto actualizado.")
+                                    time.sleep(0.5); st.rerun()
+                                    
+                        elif accion_crm == "Eliminar":
+                            st.warning(f"¿Desea eliminar a {contacto_sel} permanentemente?")
+                            if st.button("Confirmar Eliminación", type="primary"):
+                                df_crm = df_crm[df_crm['Nombre'] != contacto_sel]
+                                guardar_df(df_crm, ARCHIVO_CRM)
+                                st.success("Contacto eliminado.")
+                                time.sleep(0.5); st.rerun()
+                    else:
+                        st.info("Directorio vacío.")
+                
+                st.divider()
+                c_cli, c_pro = st.columns(2)
+                
+                df_crm_sorted = df_crm.sort_values(by='Fecha', ascending=False)
+                
+                with c_cli:
+                    st.markdown("##### Clientes")
+                    st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Cliente'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
+                with c_pro:
+                    st.markdown("##### Proveedores")
+                    st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Proveedor'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
+            
+            # --- Pestaña 2: Bandeja de Entrada (Preparación para Webhook) ---
+            with crm_tabs[1]:
+                st.markdown("#### 💬 Mensajes Recibidos Automáticamente")
+                st.info("💡 **Aviso:** Streamlit requiere un servidor secundario (como Flask) para recibir Webhooks. Cuando el servidor externo reciba un mensaje de la API de Meta, lo escribirá en el archivo 'tr_inbox.csv' y aparecerá aquí.")
+                
+                df_inbox = cargar_csv(ARCHIVO_INBOX, ['Fecha', 'Plataforma', 'Remitente', 'Mensaje'])
+                
+                if df_inbox.empty:
+                    st.write("No hay mensajes nuevos en tu bandeja.")
+                    # Botón para simular entrada de datos por un Webhook externo
+                    if st.button("Simular mensaje entrante (Prueba)"):
+                        nuevo_msg = {'Fecha': datetime.now().strftime("%Y-%m-%d %H:%M"), 'Plataforma': 'WhatsApp', 'Remitente': '6676562718', 'Mensaje': 'Hola, ¿tienen disponibilidad de la talla 27?'}
+                        df_inbox = pd.concat([df_inbox, pd.DataFrame([nuevo_msg])], ignore_index=True)
+                        df_inbox.to_csv(ARCHIVO_INBOX, index=False)
+                        st.rerun()
                 else:
-                    st.info("Directorio vacío.")
-            
-            st.divider()
-            c_cli, c_pro = st.columns(2)
-            
-            df_crm_sorted = df_crm.sort_values(by='Fecha', ascending=False)
-            
-            with c_cli:
-                st.markdown("##### Clientes")
-                st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Cliente'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
-            with c_pro:
-                st.markdown("##### Proveedores")
-                st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Proveedor'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
+                    if st.button("Limpiar Bandeja"):
+                        if os.path.exists(ARCHIVO_INBOX): os.remove(ARCHIVO_INBOX)
+                        st.rerun()
+                    
+                    st.divider()
+                    for _, msg in df_inbox.iterrows():
+                        with st.chat_message("user", avatar="💬"):
+                            st.write(f"**{msg['Remitente']}** vía {msg['Plataforma']} - {msg['Fecha']}")
+                            st.write(f"_{msg['Mensaje']}_")
+
+            # --- Pestaña 3: Configuración APIs ---
+            with crm_tabs[2]:
+                st.markdown("#### ⚙️ Credenciales de Integración (Meta for Developers)")
+                st.write("Llena estos datos con la información de tu app en Meta. El servidor Flask usará estas claves para conectarse.")
+                
+                df_config = cargar_csv(ARCHIVO_CONFIG_API, ['WA_TOKEN', 'WA_PHONE_ID', 'WEBHOOK_TOKEN'])
+                val_token = df_config.iloc[0]['WA_TOKEN'] if not df_config.empty else ""
+                val_phone = df_config.iloc[0]['WA_PHONE_ID'] if not df_config.empty else ""
+                val_webhk = df_config.iloc[0]['WEBHOOK_TOKEN'] if not df_config.empty else ""
+                
+                with st.form("api_config_form"):
+                    wa_token = st.text_input("WhatsApp Business API Token (Permanent o Temporal)", value=val_token, type="password")
+                    wa_phone_id = st.text_input("Phone Number ID", value=val_phone)
+                    wa_webhook_token = st.text_input("Webhook Verify Token (El que pondrás en tu script Flask)", value=val_webhk)
+                    
+                    if st.form_submit_button("Guardar Credenciales"):
+                        nuevo_config = {'WA_TOKEN': wa_token, 'WA_PHONE_ID': wa_phone_id, 'WEBHOOK_TOKEN': wa_webhook_token}
+                        pd.DataFrame([nuevo_config]).to_csv(ARCHIVO_CONFIG_API, index=False)
+                        st.success("Credenciales de API guardadas correctamente para uso del servidor.")
