@@ -9,43 +9,114 @@ import re
 import smtplib 
 from email.mime.text import MIMEText 
 from email.mime.multipart import MIMEMultipart 
+from email.mime.image import MIMEImage # Nuevo: para adjuntar imágenes
 from datetime import datetime, timedelta
 
 # ==========================================
-# 1. CONFIGURACIÓN VISUAL CORPORATIVA
+# 1. CONFIGURACIÓN VISUAL CORPORATIVA (MEJORADA)
 # ==========================================
 st.set_page_config(page_title="Tenis Rey | Sport", page_icon="👟", layout="wide")
 
-# CSS: Diseño responsivo, limpio y profesional
+# CSS: Diseño premium, efectos dinámicos, sombras y transiciones
 st.markdown("""
     <style>
     /* FUENTE CORPORATIVA */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
-    /* TÍTULOS */
-    h1, h2, h3 { color: #B71C1C !important; font-weight: 700 !important; letter-spacing: -0.5px; }
+    /* TÍTULOS CON GRADIENTE DINÁMICO */
+    h1, h2, h3 { 
+        background: linear-gradient(135deg, #FF1744 0%, #B71C1C 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800 !important; 
+        letter-spacing: -0.5px; 
+    }
 
-    /* TARJETAS DE MÉTRICAS (KPIs) */
-    div[data-testid="stMetric"] { background-color: var(--secondary-background-color); border: 1px solid rgba(128, 128, 128, 0.2); border-left: 4px solid #B71C1C; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    div[data-testid="stMetricLabel"] { color: var(--text-color) !important; opacity: 0.8; font-weight: 600; }
-    div[data-testid="stMetricValue"] { color: var(--text-color) !important; font-weight: 700; }
+    /* TARJETAS DE MÉTRICAS (KPIs) - EFECTO GLASS/PREMIUM */
+    div[data-testid="stMetric"] { 
+        background: linear-gradient(145deg, var(--secondary-background-color), rgba(183, 28, 28, 0.03));
+        border: 1px solid rgba(183, 28, 28, 0.2); 
+        border-left: 5px solid #FF1744; 
+        border-radius: 12px; 
+        padding: 20px; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+        transition: all 0.3s ease-in-out;
+    }
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(255, 23, 68, 0.15);
+        border-left: 5px solid #D50000;
+    }
+    div[data-testid="stMetricLabel"] { color: var(--text-color) !important; opacity: 0.7; font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; }
+    div[data-testid="stMetricValue"] { color: var(--text-color) !important; font-weight: 800; font-size: 2rem; }
 
-    /* INPUTS Y SELECTBOXES */
-    .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div, .stTextArea textarea { background-color: var(--secondary-background-color) !important; color: var(--text-color) !important; border: 1px solid rgba(128, 128, 128, 0.3) !important; border-radius: 6px !important; }
-    .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus { border-color: #B71C1C !important; box-shadow: 0 0 0 1px #B71C1C !important; }
+    /* INPUTS Y SELECTBOXES - ANIMADOS */
+    .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div, .stTextArea textarea { 
+        background-color: var(--secondary-background-color) !important; 
+        color: var(--text-color) !important; 
+        border: 1px solid rgba(128, 128, 128, 0.2) !important; 
+        border-radius: 8px !important; 
+        transition: all 0.3s ease;
+    }
+    .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus, .stSelectbox div[data-baseweb="select"] > div:focus-within { 
+        border-color: #FF1744 !important; 
+        box-shadow: 0 0 0 2px rgba(255, 23, 68, 0.2) !important; 
+    }
     div[data-baseweb="select"] span { color: var(--text-color) !important; }
 
-    /* BOTONES PRIMARIOS */
-    div.stButton > button { width: 100%; background-color: #B71C1C; color: #ffffff !important; font-weight: 600; border: 1px solid #B71C1C; border-radius: 6px; transition: all 0.2s ease; }
-    div.stButton > button:hover { background-color: #D32F2F; border-color: #D32F2F; color: #ffffff !important; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(183, 28, 28, 0.2); }
+    /* BOTONES PRIMARIOS - EFECTO HOVER PROFESIONAL */
+    div.stButton > button { 
+        width: 100%; 
+        background: linear-gradient(135deg, #D50000 0%, #B71C1C 100%); 
+        color: #ffffff !important; 
+        font-weight: 700; 
+        border: none; 
+        border-radius: 8px; 
+        padding: 0.5rem 1rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        box-shadow: 0 4px 6px rgba(183, 28, 28, 0.2);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    div.stButton > button:hover { 
+        background: linear-gradient(135deg, #FF1744 0%, #D50000 100%); 
+        transform: translateY(-2px) scale(1.01); 
+        box-shadow: 0 8px 20px rgba(255, 23, 68, 0.4); 
+    }
+    div.stButton > button:active {
+        transform: translateY(1px) scale(0.98);
+    }
 
-    /* LOGIN CARD */
-    .login-card { background-color: var(--secondary-background-color); padding: 2.5rem; border-radius: 12px; border: 1px solid rgba(183, 28, 28, 0.2); box-shadow: 0 8px 24px rgba(0,0,0,0.05); text-align: center; }
+    /* LOGIN CARD CON GLASSMORPHISM */
+    .login-card { 
+        background: var(--secondary-background-color); 
+        padding: 3rem; 
+        border-radius: 16px; 
+        border: 1px solid rgba(255, 23, 68, 0.15); 
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1), 0 0 20px rgba(255, 23, 68, 0.05); 
+        text-align: center; 
+        backdrop-filter: blur(10px);
+    }
     
-    /* PESTAÑAS */
-    .stTabs [data-baseweb="tab-list"] { border-bottom: 1px solid rgba(128,128,128,0.2); }
-    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] { background-color: rgba(183, 28, 28, 0.05); border-bottom: 3px solid #B71C1C; color: #B71C1C !important; font-weight: 600; }
+    /* PESTAÑAS (TABS) MEJORADAS */
+    .stTabs [data-baseweb="tab-list"] { 
+        border-bottom: 2px solid rgba(128,128,128,0.1); 
+        gap: 20px;
+    }
+    .stTabs [data-baseweb="tab-list"] button {
+        padding-bottom: 10px !important;
+        transition: color 0.3s ease;
+    }
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] { 
+        background-color: transparent; 
+        border-bottom: 3px solid #FF1744; 
+        color: #FF1744 !important; 
+        font-weight: 700; 
+    }
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="false"]:hover {
+        color: #D50000 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -93,7 +164,7 @@ if 'sesion_iniciada' not in st.session_state:
     st.session_state.ultimo_ticket = ""
     if 'contador_soporte' not in st.session_state: st.session_state.contador_soporte = 0
 
-def enviar_correo_soporte(mensaje):
+def enviar_correo_soporte(mensaje, adjunto=None):
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
@@ -101,6 +172,13 @@ def enviar_correo_soporte(mensaje):
         msg = MIMEMultipart()
         msg['Subject'] = f"🚨 Alerta de Sistema (Tenis Rey) - {datetime.now().strftime('%H:%M')}"
         msg.attach(MIMEText(f"Usuario reporta: {st.session_state.nombre_usuario}\n\nDetalle de la incidencia:\n{mensaje}", 'plain'))
+        
+        # Procesar la imagen adjunta si existe
+        if adjunto is not None:
+            img_data = adjunto.read()
+            imagen = MIMEImage(img_data, name=adjunto.name)
+            msg.attach(imagen)
+
         server.sendmail("alanbdb64@gmail.com", "alanbdb64@gmail.com", msg.as_string())
         server.quit()
         return True
@@ -170,10 +248,10 @@ def generar_ticket(sku, modelo, cant, total, user, metodo_pago="Efectivo"):
  
  SKU: {sku}
 ----------------------------------------
-           TOTAL A PAGAR: ${total:,.2f}
+            TOTAL A PAGAR: ${total:,.2f}
 ========================================
          ¡GRACIAS POR SU COMPRA!
-      Conserve su ticket para 
+       Conserve su ticket para 
         cualquier aclaración.
 ========================================
     """
@@ -233,7 +311,7 @@ else:
     df_crm = cargar_csv(ARCHIVO_CRM, ['Tipo', 'Nombre', 'Contacto', 'Mensaje_Nota', 'Fecha'])
     
     if df_crm.empty:
-        df_crm = pd.DataFrame([{'Tipo': 'Proveedor', 'Nombre': 'Ing. Alan Pizarro(Soporte Técnico)', 'Contacto': '5576562718 / alanbdb64@gmail.com', 'Mensaje_Nota': 'Contacto principal del sistema.', 'Fecha': datetime.now().strftime("%Y-%m-%d")}])
+        df_crm = pd.DataFrame([{'Tipo': 'Proveedor', 'Nombre': 'Alan (Soporte Técnico)', 'Contacto': '5576562718 / alanbdb64@gmail.com', 'Mensaje_Nota': 'Contacto principal del sistema.', 'Fecha': datetime.now().strftime("%Y-%m-%d")}])
         guardar_df(df_crm, ARCHIVO_CRM)
     
     # --- BARRA LATERAL ---
@@ -310,12 +388,20 @@ else:
         with st.expander("🛠️ Reportar Incidencia", expanded=False):
             key_din = f"txt_soporte_{st.session_state.contador_soporte}"
             msg_err = st.text_area("Describa el error del sistema:", key=key_din)
+            archivo_adjunto = st.file_uploader("Adjuntar captura de pantalla (Opcional)", type=['png', 'jpg', 'jpeg'], key=f"adjunto_{st.session_state.contador_soporte}")
+            
             if st.button("Enviar Ticket de Soporte"):
-                if msg_err and enviar_correo_soporte(msg_err):
-                    st.success("Ticket enviado al administrador.")
-                    st.session_state.contador_soporte += 1
-                    time.sleep(1)
-                    st.rerun()
+                if msg_err:
+                    with st.spinner("Enviando reporte..."):
+                        if enviar_correo_soporte(msg_err, archivo_adjunto):
+                            st.success("Ticket enviado al administrador.")
+                            st.session_state.contador_soporte += 1
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error("Hubo un error al enviar el reporte. Verifique la conexión.")
+                else:
+                    st.warning("Debe describir el error para poder enviarlo.")
 
         if st.button("Cerrar Sesión"):
             st.session_state.sesion_iniciada = False
@@ -612,7 +698,7 @@ else:
                         com['Comisión Base (3%)'] = com['Monto_Venta'] * 0.03
                         
                         meta = st.number_input("Meta de Venta para Bono Extra ($):", value=10000)
-                        bono_pct = st.number_input("Porcentaje de Bono sobre excedente (%):", value=5.0) / 100
+                        bono_pct = st.number_input("Porcentaje de Bono sobre excedente (%)", value=5.0) / 100
                         com['Bono Extra'] = com.apply(lambda x: (x['Monto_Venta'] - meta) * bono_pct if x['Monto_Venta'] >= meta else 0, axis=1)
                         com['Total a Pagar'] = com['Comisión Base (3%)'] + com['Bono Extra']
                         
@@ -648,7 +734,6 @@ else:
         with t_crm:
             crm_tabs = st.tabs(["👥 Directorio de Contactos", "💬 Bandeja de Entrada (Chats)", "⚙️ Configuración APIs (Webhooks)"])
             
-            # --- Pestaña 1: Directorio (Lo que ya tenías) ---
             with crm_tabs[0]:
                 c_form, c_action = st.columns([1, 1])
                 
@@ -716,9 +801,7 @@ else:
                 
                 st.divider()
                 c_cli, c_pro = st.columns(2)
-                
                 df_crm_sorted = df_crm.sort_values(by='Fecha', ascending=False)
-                
                 with c_cli:
                     st.markdown("##### Clientes")
                     st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Cliente'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
@@ -726,7 +809,6 @@ else:
                     st.markdown("##### Proveedores")
                     st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Proveedor'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
             
-            # --- Pestaña 2: Bandeja de Entrada (Preparación para Webhook) ---
             with crm_tabs[1]:
                 st.markdown("#### 💬 Mensajes Recibidos Automáticamente")
                 st.info("💡 **Aviso:** Streamlit requiere un servidor secundario (como Flask) para recibir Webhooks. Cuando el servidor externo reciba un mensaje de la API de Meta, lo escribirá en el archivo 'tr_inbox.csv' y aparecerá aquí.")
@@ -735,7 +817,6 @@ else:
                 
                 if df_inbox.empty:
                     st.write("No hay mensajes nuevos en tu bandeja.")
-                    # Botón para simular entrada de datos por un Webhook externo
                     if st.button("Simular mensaje entrante (Prueba)"):
                         nuevo_msg = {'Fecha': datetime.now().strftime("%Y-%m-%d %H:%M"), 'Plataforma': 'WhatsApp', 'Remitente': '5576562718', 'Mensaje': 'Hola, ¿tienen disponibilidad de la talla 27?'}
                         df_inbox = pd.concat([df_inbox, pd.DataFrame([nuevo_msg])], ignore_index=True)
@@ -752,7 +833,6 @@ else:
                             st.write(f"**{msg['Remitente']}** vía {msg['Plataforma']} - {msg['Fecha']}")
                             st.write(f"_{msg['Mensaje']}_")
 
-            # --- Pestaña 3: Configuración APIs ---
             with crm_tabs[2]:
                 st.markdown("#### ⚙️ Credenciales de Integración (Meta for Developers)")
                 st.write("Llena estos datos con la información de tu app en Meta. El servidor Flask usará estas claves para conectarse.")
