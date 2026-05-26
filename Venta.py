@@ -95,6 +95,7 @@ if 'sesion_iniciada' not in st.session_state:
     st.session_state.ultimo_ticket = ""
     st.session_state.carrito = []
     if 'contador_soporte' not in st.session_state: st.session_state.contador_soporte = 0
+    if 'busqueda_manual' not in st.session_state: st.session_state.busqueda_manual = "" # Para el botón buscar
 
 def enviar_correo_soporte(mensaje, adjunto=None):
     try:
@@ -424,7 +425,17 @@ else:
         c1, c2 = st.columns([1.2, 1])
         with c1:
             st.markdown("#### Búsqueda de Artículo")
-            scan = st.text_input("Búsqueda de Artículo:", placeholder="Escanee código de barras o ingrese SKU/descripción...", label_visibility="collapsed")
+            
+            # Formulario para asegurar que en celular se pueda forzar la búsqueda
+            with st.form("form_buscar_tpv", clear_on_submit=False):
+                col_search, col_btn = st.columns([4, 1])
+                scan_input = col_search.text_input("Búsqueda de Artículo:", placeholder="Escanee código de barras o ingrese SKU/descripción...", label_visibility="collapsed")
+                submit_search = col_btn.form_submit_button("🔍 Buscar")
+            
+            # Usar la entrada del formulario o el estado de sesión si acaba de enviar
+            scan = scan_input if submit_search else st.session_state.busqueda_manual
+            st.session_state.busqueda_manual = scan_input # Guardar para recargas
+            
             sel = None
             if scan:
                 scan = sanitizar_texto(scan)
@@ -467,6 +478,7 @@ else:
                             'Costo_Unitario': sel['Costo_Unitario'],
                             'Subtotal': tot_item
                         })
+                        st.session_state.busqueda_manual = "" # Limpiar la búsqueda tras agregar
                         st.success(f"{q}x {sel['Modelo']} añadido al carrito.")
                         time.sleep(0.5)
                         st.rerun()
@@ -483,6 +495,15 @@ else:
                 if st.session_state.ultimo_ticket:
                     with st.expander("🧾 Ver / Enviar Última Transacción", expanded=True):
                         st.code(st.session_state.ultimo_ticket, language="text")
+                        
+                        # Botón para descargar el ticket físico (TXT)
+                        st.download_button(
+                            label="📥 Descargar Ticket (TXT)",
+                            data=st.session_state.ultimo_ticket,
+                            file_name=f"Ticket_TenisRey_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
                         
                         st.markdown("#### 📤 Enviar Ticket al Cliente")
                         send_method = st.radio("Método de envío", ["WhatsApp", "Correo Electrónico"], horizontal=True, label_visibility="collapsed")
@@ -546,6 +567,7 @@ else:
                     guardar_df(df_inv, ARCHIVO_INVENTARIO)
                     st.session_state.ultimo_ticket = generar_ticket(st.session_state.carrito, tot_carrito, st.session_state.nombre_usuario, metodo, pago_cliente, cambio)
                     st.session_state.carrito = [] # Vaciar carrito tras la compra exitosa
+                    st.session_state.busqueda_manual = "" # Limpia también la barra
                     st.success("Transacción registrada correctamente.")
                     time.sleep(0.5)
                     st.rerun()
