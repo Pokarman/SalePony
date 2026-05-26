@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 # ==========================================
 # 1. CONFIGURACIÓN VISUAL CORPORATIVA
 # ==========================================
-st.set_page_config(page_title="Tenis Rey | Sport", page_icon="🏢", layout="wide")
+st.set_page_config(page_title="Tenis Rey | Sport", page_icon="👟", layout="wide")
 
 # CSS: Diseño responsivo, limpio y profesional
 st.markdown("""
@@ -218,9 +218,9 @@ def generar_ticket(sku, modelo, cant, total, user):
 ----------------------------------------
            TOTAL A PAGAR: ${total:,.2f}
 ========================================
-        ¡GRACIAS POR SU COMPRA!
+         ¡GRACIAS POR SU COMPRA!
       Conserve su ticket para 
-       cualquier aclaración.
+        cualquier aclaración.
 ========================================
     """
 
@@ -252,7 +252,7 @@ if not st.session_state.sesion_iniciada:
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("""
             <div class="login-card">
-                <h2 style='text-align: center; margin-bottom: 0;'>TENIS REY</h2>
+                <h1 style='text-align: center; margin-bottom: 0;'>👟 TENIS REY</h1>
                 <p style='text-align: center; opacity: 0.8; font-weight: 600; color: #B71C1C;'>Sport & Punto de Venta</p>
                 <hr style='border-color: rgba(183, 28, 28, 0.2);'>
             </div>
@@ -358,7 +358,7 @@ else:
                     st.rerun()
 
     # --- ÁREA DE TRABAJO PRINCIPAL ---
-    st.markdown("<h2 style='margin-bottom: 0;'>Panel de Control - Tenis Rey</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='margin-bottom: 0;'>👟 Panel de Control - Tenis Rey Sport</h2>", unsafe_allow_html=True)
     
     # CÁLCULO DE KPIs
     pend = df_ped[df_ped['Estado']=='Pendiente'].shape[0]
@@ -379,7 +379,7 @@ else:
     st.divider()
 
     # PESTAÑAS DE NAVEGACIÓN
-    tabs = st.tabs(["📦 ÓRDENES E-COMMERCE", "🛒 TERMINAL PUNTO DE VENTA", "👟 GESTIÓN DE INVENTARIO", "📝 MANTENIMIENTO DE CATÁLOGO", "📊 REPORTES FINANCIEROS"]) if st.session_state.rol_usuario == "Administrador" else st.tabs(["📦 ÓRDENES E-COMMERCE", "🛒 TERMINAL PUNTO DE VENTA", "👟 CONSULTA DE INVENTARIO"])
+    tabs = st.tabs(["📦 ÓRDENES E-COMMERCE", "🛒 TPV SPORT", "👟 INVENTARIO", "📝 CATÁLOGO", "📊 REPORTES"]) if st.session_state.rol_usuario == "Administrador" else st.tabs(["📦 ÓRDENES", "🛒 TPV", "👟 INVENTARIO"])
     t_ped, t_pos, t_inv = tabs[0], tabs[1], tabs[2]
     t_adm = tabs[3] if len(tabs) > 3 else None
     t_rep = tabs[4] if len(tabs) > 3 else None
@@ -392,7 +392,8 @@ else:
             for i, r in p.iterrows():
                 with st.container():
                     c1, c2, c3, c4 = st.columns([0.5, 3, 2, 1.5])
-                    c1.markdown("<h4>📦</h4>", unsafe_allow_html=True)
+                    icon = "👕" if "Ropa" in r['Modelo'] or "Playera" in r['Modelo'] else "👟"
+                    c1.markdown(f"<h4>{icon}</h4>", unsafe_allow_html=True)
                     c2.markdown(f"**{r['Modelo']}**")
                     c2.caption(f"SKU: {r['SKU']} | Unidades: **{r['Cantidad']}**")
                     c3.write(f"Ref. Externa: {r['ID_Pedido']}")
@@ -406,8 +407,8 @@ else:
     with t_pos:
         c1, c2 = st.columns([2, 1])
         with c1:
-            st.markdown("#### Registro de Venta")
-            scan = st.text_input("Búsqueda de Artículo:", placeholder="Ingrese SKU o descripción del artículo...", label_visibility="collapsed")
+            st.markdown("#### Registro de Venta Deportiva")
+            scan = st.text_input("Búsqueda de Artículo:", placeholder="Ingrese SKU o descripción (Tenis, Ropa, etc)...", label_visibility="collapsed")
             sel = None
             if scan:
                 scan = sanitizar_texto(scan)
@@ -455,7 +456,7 @@ else:
 
     # 3. INVENTARIO
     with t_inv:
-        st.markdown("#### Base de Datos de Inventario")
+        st.markdown("#### Base de Datos de Artículos")
         ver_bajo = st.checkbox("Mostrar únicamente artículos con alerta de stock") 
         
         df_show = df_inv.copy()
@@ -475,7 +476,7 @@ else:
     # 4. ADMINISTRACIÓN DE CATÁLOGO
     if t_adm:
         with t_adm:
-            st.markdown("#### Ingreso y Modificación de Artículos")
+            st.markdown("#### Gestión Profesional de Inventario")
             act = st.radio("Tipo de Operación", ["Registro Nuevo", "Duplicar Registro", "Modificar Datos", "Ajuste de Existencias"], horizontal=True)
             d_sku, d_mod, d_qty, d_min, d_cost, d_pv = "", "", 1, 2, 0.0, 0.0
             d_cat, d_link, d_ml, d_amz = "Calzado", "", 0.0, 0.0 
@@ -494,7 +495,7 @@ else:
                 d_link, d_ml, d_amz = r['Proveedor'], float(r['Precio_ML']), float(r['Precio_Amazon'])
 
             with st.form("adm"):
-                st.markdown("##### Especificaciones del Artículo")
+                st.markdown("##### Especificaciones Técnicas (Tenis/Ropa)")
                 c1, c2 = st.columns(2)
                 f_sku = c1.text_input("Código SKU Interno", d_sku, disabled=(act in ["Modificar Datos", "Ajuste de Existencias"]))
                 f_mod = c2.text_input("Descripción Comercial", d_mod, disabled=(act=="Ajuste de Existencias"))
@@ -504,7 +505,7 @@ else:
                 f_qty = c4.number_input("Unidades Físicas Ingresadas", value=d_qty)
                 f_min = c5.number_input("Punto de Reorden (Stock Mínimo)", value=d_min) 
                 
-                st.markdown("##### Parámetros Financieros")
+                st.markdown("##### Parámetros de Rentabilidad")
                 c6, c7, c8 = st.columns(3)
                 f_cos = c6.number_input("Costo de Adquisición Unitario", value=d_cost)
                 f_pv = c7.number_input("Precio de Venta Sugerido", value=d_pv)
@@ -539,14 +540,14 @@ else:
         # 5. REPORTES FINANCIEROS
         if t_rep:
             with t_rep:
-                st.markdown("#### Análisis de Ingresos y Rentabilidad")
+                st.markdown("#### Análisis Comercial")
                 freq = st.radio("Período de Agrupación:", ["Diario", "Mensual"], horizontal=True)
                 
                 if df_full is not None and not df_full.empty:
                     df_c = df_full.copy()
                     grp = df_c['Fecha_Dt'].dt.date if freq=="Diario" else df_c['Fecha_Dt'].dt.strftime('%Y-%m')
                     
-                    st.markdown("### Estado de Resultados (Simplificado)")
+                    st.markdown("### Estado de Resultados")
                     tab = df_c.groupby(grp)[['Monto_Venta', 'Monto_Gasto']].sum()
                     tab.columns = ['Ingresos Brutos', 'Costo de Adquisición/Gastos']
                     tab['Utilidad Operativa'] = tab['Ingresos Brutos'] - tab['Costo de Adquisición/Gastos']
@@ -554,7 +555,7 @@ else:
                     
                     csv = tab.to_csv().encode('utf-8')
                     st.download_button(
-                        label="📥 Exportar Estado de Resultados (.csv)",
+                        label="📥 Exportar Reporte (.csv)",
                         data=csv,
                         file_name='reporte_financiero_tr.csv',
                         mime='text/csv',
@@ -562,11 +563,10 @@ else:
 
                     st.divider()
                     
-                    st.markdown("### Indicadores de Desempeño Comercial")
-                    st.caption("Ajuste los parámetros impositivos y logísticos para calcular el margen neto real de las operaciones de venta.")
+                    st.markdown("### Indicadores de Desempeño")
                     c1, c2 = st.columns(2)
-                    imp_pct = c1.number_input("Carga Impositiva (Ej. IVA 16%)", 16.0) / 100
-                    com_pct = c2.number_input("Costo de Transacción (TPV/Plataformas)", 4.0) / 100
+                    imp_pct = c1.number_input("Carga Impositiva (%)", 16.0) / 100
+                    com_pct = c2.number_input("Costos Logísticos/TPV (%)", 4.0) / 100
                     
                     vs = df_c[df_c['Accion'].str.contains('VENTA')]
                     if not vs.empty:
@@ -581,25 +581,19 @@ else:
                         
                         m1, m2, m3 = st.columns(3)
                         m1.metric("Facturación Total", f"${tot_v:,.2f}")
-                        m2.metric("Costo de Ventas (CMV)", f"-${tot_c:,.2f}")
+                        m2.metric("CMV", f"-${tot_c:,.2f}")
                         m3.metric("Utilidad Bruta", f"${bruta:,.2f}")
                         
                         m4, m5, m6 = st.columns(3)
-                        m4.metric("Deducciones (Impuestos y Comisiones)", f"-${gastos_variables:,.2f}")
+                        m4.metric("Deducciones", f"-${gastos_variables:,.2f}")
                         m5.metric("Utilidad Neta", f"${neta:,.2f}")
                         m6.metric("Margen Neto (%)", f"{(neta/tot_v)*100:.2f}%" if tot_v > 0 else "0.00%")
                         
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        st.info(f"💡 **Información Adicional:** Se registraron **{num_transacciones}** transacciones de venta en el histórico, resultando en un **Ticket Promedio de ${ticket_promedio:,.2f}** por operación.")
-                    else: 
-                        st.info("El sistema requiere registrar ventas para calcular métricas de desempeño.")
-
+                        st.info(f"💡 Se han realizado **{num_transacciones}** ventas. Ticket promedio: **${ticket_promedio:,.2f}**.")
+                    
                     st.divider()
-                    st.markdown("##### Reporte de Desempeño por Asesor Comercial")
+                    st.markdown("##### Rendimiento por Asesor")
                     if not vs.empty:
                         com = vs.groupby('Usuario')['Monto_Venta'].sum().reset_index()
                         com['Comisión Base (3%)'] = com['Monto_Venta'] * 0.03
                         st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Comisión Base (3%)': '${:,.2f}'}), use_container_width=True)
-
-                else: 
-                    st.info("El sistema no cuenta con suficientes registros contables para generar reportes.")
