@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 # ==========================================
 # 1. CONFIGURACIÓN VISUAL CORPORATIVA
 # ==========================================
-st.set_page_config(page_title="Tenis Rey | Sport", page_icon="👟", layout="wide")
+st.set_page_config(page_title="SportKing | Sport", page_icon="👟", layout="wide")
 
 # CSS: Diseño responsivo, limpio y profesional
 st.markdown("""
@@ -72,7 +72,7 @@ def sanitizar_texto(texto):
 def cargar_usuarios():
     if not os.path.exists(ARCHIVO_USUARIOS):
         usuarios_defecto = [
-            {'Usuario': 'admin', 'Clave': hash_password('admin123'), 'Rol': 'Administrador', 'Nombre': 'Gerencia Tenis Rey'},
+            {'Usuario': 'admin', 'Clave': hash_password('admin123'), 'Rol': 'Administrador', 'Nombre': 'Gerencia SportKing'},
             {'Usuario': 'vendedor', 'Clave': hash_password('ven123'), 'Rol': 'Vendedor', 'Nombre': 'Asesor Comercial'}
         ]
         df = pd.DataFrame(usuarios_defecto)
@@ -103,7 +103,7 @@ def enviar_correo_soporte(mensaje, adjunto=None):
         server.starttls()
         server.login("alanbdb64@gmail.com", "dxah wqco wygs bjgk".replace(" ", ""))
         msg = MIMEMultipart()
-        msg['Subject'] = f"🚨 Alerta de Sistema (Tenis Rey) - {datetime.now().strftime('%H:%M')}"
+        msg['Subject'] = f"🚨 Alerta de Sistema (SportKing) - {datetime.now().strftime('%H:%M')}"
         msg.attach(MIMEText(f"Usuario reporta: {st.session_state.nombre_usuario}\n\nDetalle de la incidencia:\n{mensaje}", 'plain'))
         
         if adjunto is not None:
@@ -122,8 +122,8 @@ def enviar_ticket_correo(correo_destino, ticket_texto):
         server.starttls()
         server.login("alanbdb64@gmail.com", "dxah wqco wygs bjgk".replace(" ", ""))
         msg = MIMEMultipart()
-        msg['Subject'] = f"🧾 Ticket de Compra - Tenis Rey"
-        msg['From'] = "Tenis Rey Tienda"
+        msg['Subject'] = f"🧾 Ticket de Compra - SportKing"
+        msg['From'] = "SportKing Tienda"
         msg['To'] = correo_destino
         
         body = f"Hola,\n\nGracias por tu preferencia y por caminar con nosotros. Aquí tienes tu comprobante de compra:\n\n{ticket_texto}\n\n¡Vuelve pronto!"
@@ -197,7 +197,7 @@ def generar_ticket(carrito_items, total, user, metodo_pago="Efectivo", pago_clie
         
     return f"""
 ========================================
-         TENIS REY - SUCURSAL
+         SportKing - SUCURSAL
 ========================================
  Fecha:   {datetime.now().strftime("%d/%m/%Y %H:%M")}
  Cajero:  {user}
@@ -243,7 +243,7 @@ if not st.session_state.sesion_iniciada:
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("""
             <div class="login-card">
-                <h1 style='text-align: center; margin-bottom: 0;'>👟 TENIS REY</h1>
+                <h1 style='text-align: center; margin-bottom: 0;'>👟 SportKing</h1>
                 <p style='text-align: center; opacity: 0.8; font-weight: 600; color: #B71C1C;'>Sport & Punto de Venta</p>
                 <hr style='border-color: rgba(183, 28, 28, 0.2);'>
             </div>
@@ -374,7 +374,7 @@ else:
                     st.rerun()
 
     # --- ÁREA DE TRABAJO PRINCIPAL ---
-    st.markdown("<h2 style='margin-bottom: 0;'>👟 Panel de Control - Tenis Rey Sport</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='margin-bottom: 0;'>👟 Panel de Control - SportKing Sport</h2>", unsafe_allow_html=True)
     
     pend = df_ped[df_ped['Estado']=='Pendiente'].shape[0]
     low = df_inv[df_inv['Cantidad'] <= df_inv['Stock_Minimo']].shape[0]
@@ -818,7 +818,7 @@ else:
                             num_correo = str(datos_contacto['Contacto']).strip()
                             st.info(f"**Contacto:** {num_correo}\n\n**Nota:** {datos_contacto['Mensaje_Nota']}")
                             
-                            msg_pred = f"Hola {contacto_sel}, te contactamos de la gerencia de Tenis Rey."
+                            msg_pred = f"Hola {contacto_sel}, te contactamos de la gerencia de SportKing."
                             num_limpio = ''.join(filter(str.isdigit, num_correo))
                             
                             if num_limpio and len(num_limpio) >= 10:
