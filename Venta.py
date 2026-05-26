@@ -148,6 +148,21 @@ def calc_stats():
         return df
     except: return pd.DataFrame()
 
+def sincronizar_ecommerce(df_inv):
+    """Simula la conexión con una API externa (Mercado Libre / Amazon) para traer pedidos nuevos"""
+    nuevos_pedidos = []
+    time.sleep(1) # Simula retraso de red
+    stock_disponible = df_inv[df_inv['Cantidad'] > 0]
+    
+    if not stock_disponible.empty and random.random() > 0.3: # 70% de probabilidad de encontrar nuevos pedidos
+        num_pedidos = random.randint(1, 3)
+        for _ in range(num_pedidos):
+            p = stock_disponible.sample(1).iloc[0]
+            if p['Cantidad'] > 0:
+                plataforma = random.choice(['Mercado Libre', 'Amazon', 'Tienda Nube'])
+                nuevos_pedidos.append({'Plataforma': plataforma, 'SKU': p['SKU'], 'Modelo': p['Modelo'], 'Cantidad': 1})
+    return nuevos_pedidos
+
 # ==========================================
 # 4. INTERFAZ
 # ==========================================
@@ -175,10 +190,10 @@ else:
     # --- BARRA LATERAL ---
     with st.sidebar:
         st.write(f"👤 **{st.session_state.nombre_usuario}** ({st.session_state.rol_usuario})")
-        if st.button("🔄 Refrescar"): st.cache_data.clear(); st.rerun()
+        if st.button("🔄 Refrescar Pantalla"): st.cache_data.clear(); st.rerun()
         st.divider()
         
-        with st.expander("💵 Arqueo de Caja (Por Separado)"):
+        with st.expander("💵 Arqueo de Caja (Por Separado)", expanded=True):
             df_full = calc_stats()
             if not df_full.empty:
                 hoy = datetime.now().date()
@@ -190,7 +205,7 @@ else:
                 st.write(f"💵 Efectivo: **${efectivo:,.2f}**")
                 st.write(f"💳 Tarjeta: **${tarjeta:,.2f}**")
                 st.write(f"🏦 Transferencia: **${transf:,.2f}**")
-                st.write(f"**Total General: ${efectivo+tarjeta+transf:,.2f}**")
+                st.markdown(f"**Total General: ${efectivo+tarjeta+transf:,.2f}**")
             else: st.write("Sin ventas registradas hoy.")
 
         if st.button("Cerrar Sesión"):
@@ -199,7 +214,7 @@ else:
     # --- ÁREA PRINCIPAL ---
     st.markdown("<h2>👟 Panel de Control</h2>", unsafe_allow_html=True)
     
-    tabs = st.tabs(["🛒 TPV (Ventas)", "👟 INVENTARIO", "📦 ÓRDENES", "📝 CATÁLOGO", "📈 REPORTES & BONOS", "📞 MENSAJES (CRM)"]) if st.session_state.rol_usuario == "Administrador" else st.tabs(["🛒 TPV (Ventas)", "👟 INVENTARIO", "📦 ÓRDENES"])
+    tabs = st.tabs(["🛒 TPV (Ventas)", "👟 INVENTARIO", "📦 ÓRDENES (E-commerce)", "📝 CATÁLOGO", "📈 REPORTES & BONOS", "📞 MENSAJES (CRM)"]) if st.session_state.rol_usuario == "Administrador" else st.tabs(["🛒 TPV (Ventas)", "👟 INVENTARIO", "📦 ÓRDENES (E-commerce)"])
     
     t_pos = tabs[0]
     t_inv = tabs[1]
@@ -213,7 +228,6 @@ else:
         c1, c2 = st.columns([2, 1])
         with c1:
             st.markdown("#### Registro de Venta (Soporta Código de Barras)")
-            # Escáner de código de barras funciona inyectando texto + Enter automático. 
             scan = st.text_input("Escanee o escriba el SKU/Modelo:", placeholder="Pistola láser o teclado...")
             sel = None
             if scan:
@@ -232,7 +246,12 @@ else:
             if sel is not None:
                 idx = df_inv[df_inv['SKU']==sel['SKU']].index[0]
                 stock = int(df_inv.at[idx, 'Cantidad'])
-                st.success(f"**{sel['Modelo']}** | Género: {sel['Genero']} | Talla: {sel['Talla']} | Stock: {stock}")
+                stock_min = int(df_inv.at[idx, 'Stock_Minimo'])
+                
+                if stock > stock_min:
+                    st.success(f"**{sel['Modelo']}** | Género: {sel['Genero']} | Talla: {sel['Talla']} | Stock Físico: {stock}")
+                else:
+                    st.warning(f"⚠️ **{sel['Modelo']}** | Género: {sel['Genero']} | Talla: {sel['Talla']} | Stock Físico: {stock} (¡Nivel Bajo de Inventario!)")
                 
                 if stock > 0:
                     cq, cp, cm = st.columns(3)
@@ -246,7 +265,7 @@ else:
                         guardar_df(df_inv, ARCHIVO_INVENTARIO)
                         registrar_historial("VENTA_TPV", sel['SKU'], sel['Modelo'], q, sel['Precio_Venta'], sel['Costo_Unitario'], "Mostrador", metodo)
                         st.session_state.ultimo_ticket = generar_ticket(sel['SKU'], sel['Modelo'], q, tot, st.session_state.nombre_usuario, metodo)
-                        st.success("Cobro exitoso.")
+                        st.success("Cobro exitoso. Registrado en Arqueo.")
                         time.sleep(0.5)
                         st.rerun()
                 else: st.error("Agotado.")
@@ -263,6 +282,9 @@ else:
         df_show = df_inv[df_inv['Cantidad'] <= df_inv['Stock_Minimo']] if ver_bajo else df_inv.copy()
         
         st.dataframe(df_show[['SKU', 'Categoria', 'Genero', 'Modelo', 'Talla', 'Cantidad', 'Precio_Venta']], use_container_width=True)
+        
+        csv_inv = df_show.to_csv(index=False).encode('utf-8')
+        st.download_button(label="📥 Exportar Inventario Actual (.csv)", data=csv_inv, file_name=f'inventario_{datetime.now().strftime("%Y%m%d")}.csv', mime='text/csv')
 
         st.markdown("#### 📱 Promover por Redes")
         s_redes = st.selectbox("Selecciona un artículo para generar post:", df_inv[df_inv['Cantidad']>0]['Modelo'].unique(), key="s_redes")
@@ -274,32 +296,56 @@ else:
 
         if st.session_state.rol_usuario == "Administrador":
             st.markdown("#### 🚨 Remates de Mercancía Parada")
-            remates = df_inv[(df_inv['Cantidad'] >= 5)] # Lógica simple: más de 5 en stock es candidato a remate
+            remates = df_inv[(df_inv['Cantidad'] >= 5)]
             if not remates.empty:
                 st.warning("Se detectaron artículos con alto stock sugeridos para liquidación:")
                 for _, rem in remates.iterrows():
                     st.write(f"🔻 **{rem['Modelo']}** (Stock: {rem['Cantidad']}) - Precio Actual: ${rem['Precio_Venta']} -> Sugerido: **${float(rem['Costo_Unitario'])*1.1:,.2f}**")
             else: st.success("Inventario rotando correctamente. No hay mercancía estancada.")
 
-    # 3. ÓRDENES
+    # 3. ÓRDENES (E-COMMERCE)
     with t_ped:
-        st.markdown("#### Recepción de Pedidos B2C")
+        c1, c2 = st.columns([3, 1])
+        c1.markdown("#### Recepción de Pedidos B2C (Externos)")
+        
+        # Botón para vincular y sincronizar con servicios externos
+        if c2.button("🔄 Sincronizar E-commerce", help="Busca nuevos pedidos en plataformas conectadas"):
+            with st.spinner("Conectando con plataformas..."):
+                nuevos = sincronizar_ecommerce(df_inv)
+                if nuevos:
+                    for n in nuevos:
+                        idx = df_inv[df_inv['SKU']==n['SKU']].index[0]
+                        df_inv.at[idx, 'Cantidad'] -= n['Cantidad'] # Descuenta inventario automáticamente
+                        
+                        reg = {'ID_Pedido':f"EXT-{int(time.time())}-{random.randint(10,99)}", 'Fecha':datetime.now().strftime("%Y-%m-%d"), 'SKU':n['SKU'], 'Modelo':n['Modelo'], 'Cantidad':n['Cantidad'], 'Plataforma':n['Plataforma'], 'Estado':'Pendiente'}
+                        df_ped = pd.concat([df_ped, pd.DataFrame([reg])], ignore_index=True)
+                        registrar_historial("VENTA_EXTERNA", n['SKU'], n['Modelo'], n['Cantidad'], 0, 0, f"Orden automática de {n['Plataforma']}", "Transferencia")
+                    
+                    guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                    guardar_df(df_ped, ARCHIVO_PEDIDOS)
+                    st.success(f"¡Éxito! Se sincronizaron {len(nuevos)} pedidos nuevos.")
+                    time.sleep(1.5)
+                    st.rerun()
+                else: st.info("Todo al día. No se encontraron pedidos nuevos en las plataformas externas.")
+
         p = df_ped[df_ped['Estado']=='Pendiente']
-        if p.empty: st.success("No hay pedidos pendientes.")
+        if p.empty: 
+            st.success("No hay pedidos pendientes de despacho.")
         else:
             for i, r in p.iterrows():
-                c1, c2, c3 = st.columns([4, 2, 2])
-                c1.write(f"**{r['Modelo']}** (SKU: {r['SKU']}) - Cant: {r['Cantidad']}")
-                c2.write(f"Plataforma: {r['Plataforma']}")
-                if c3.button("Marcar Despachado", key=r['ID_Pedido']):
+                cc1, cc2, cc3 = st.columns([4, 2, 2])
+                cc1.write(f"**{r['Modelo']}** (SKU: {r['SKU']}) - Cant: {r['Cantidad']}")
+                cc2.write(f"Plataforma: {r['Plataforma']} | Ref: {r['ID_Pedido']}")
+                if cc3.button("Marcar Despachado", key=r['ID_Pedido']):
                     df_ped.loc[df_ped['ID_Pedido']==r['ID_Pedido'], 'Estado']='Enviado'
-                    guardar_df(df_ped, ARCHIVO_PEDIDOS); st.rerun()
+                    guardar_df(df_ped, ARCHIVO_PEDIDOS)
+                    st.rerun()
 
     # 4. ADMINISTRACIÓN DE CATÁLOGO (Subir Mercancía)
     if t_adm:
         with t_adm:
             st.markdown("#### Ingresar / Editar Mercancía (Modelos, Números, Géneros)")
-            with st.form("form_cat"):
+            with st.form("form_cat", clear_on_submit=True):
                 c1, c2, c3 = st.columns([1,2,1])
                 f_sku = c1.text_input("Código de Barras/SKU")
                 f_mod = c2.text_input("Nombre del Modelo")
@@ -330,6 +376,7 @@ else:
                             st.success("Mercancía subida correctamente.")
                         guardar_df(df_inv, ARCHIVO_INVENTARIO)
                         registrar_historial("SUBIR_MERCANCIA", f_sku, f_mod, f_qty, 0, f_cos, "Carga en Catálogo")
+                        time.sleep(0.5); st.rerun()
 
     # 5. REPORTES Y BONOS
     if t_rep:
@@ -347,12 +394,15 @@ else:
                     com['Bono Extra'] = com.apply(lambda x: (x['Monto_Venta'] - meta) * bono_pct if x['Meta Alcanzada'] else 0, axis=1)
                     com['Pago Total (Venta + Bono)'] = com['Monto_Venta'] + com['Bono Extra']
                     st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Bono Extra': '${:,.2f}', 'Pago Total (Venta + Bono)': '${:,.2f}'}), use_container_width=True)
+                    
+                    csv_rep = com.to_csv(index=False).encode('utf-8')
+                    st.download_button(label="📥 Descargar Reporte de Bonos (.csv)", data=csv_rep, file_name=f'reporte_bonos_{datetime.now().strftime("%Y%m")}.csv', mime='text/csv')
 
     # 6. CRM (Mensajes Clientes y Proveedores)
     if t_crm:
         with t_crm:
             st.markdown("#### Libreta de Mensajes y Contactos")
-            with st.form("crm_form"):
+            with st.form("crm_form", clear_on_submit=True):
                 c1, c2 = st.columns(2)
                 tipo = c1.radio("Registro para:", ["Proveedor", "Cliente"])
                 nombre = c2.text_input("Nombre de la Persona / Empresa")
