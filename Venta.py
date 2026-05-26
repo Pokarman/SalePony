@@ -7,9 +7,10 @@ import uuid
 import hashlib
 import re
 import smtplib 
+import urllib.parse # Nuevo: para formatear el texto de WhatsApp
 from email.mime.text import MIMEText 
 from email.mime.multipart import MIMEMultipart 
-from email.mime.image import MIMEImage # Nuevo: para adjuntar imágenes
+from email.mime.image import MIMEImage
 from datetime import datetime, timedelta
 
 # ==========================================
@@ -126,7 +127,7 @@ ARCHIVO_PEDIDOS = 'tr_pedidos.csv'
 ARCHIVO_USUARIOS = 'tr_usuarios.csv' 
 ARCHIVO_CONFIG_API = 'tr_config_apis.csv'
 ARCHIVO_CRM = 'tr_crm.csv' 
-ARCHIVO_INBOX = 'tr_inbox.csv' # Nuevo archivo para Bandeja de Entrada
+ARCHIVO_INBOX = 'tr_inbox.csv'
 
 # ==========================================
 # 2. SEGURIDAD Y DATOS
@@ -173,13 +174,30 @@ def enviar_correo_soporte(mensaje, adjunto=None):
         msg['Subject'] = f"🚨 Alerta de Sistema (Tenis Rey) - {datetime.now().strftime('%H:%M')}"
         msg.attach(MIMEText(f"Usuario reporta: {st.session_state.nombre_usuario}\n\nDetalle de la incidencia:\n{mensaje}", 'plain'))
         
-        # Procesar la imagen adjunta si existe
         if adjunto is not None:
             img_data = adjunto.read()
             imagen = MIMEImage(img_data, name=adjunto.name)
             msg.attach(imagen)
 
         server.sendmail("alanbdb64@gmail.com", "alanbdb64@gmail.com", msg.as_string())
+        server.quit()
+        return True
+    except: return False
+
+def enviar_ticket_correo(correo_destino, ticket_texto):
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login("alanbdb64@gmail.com", "dxah wqco wygs bjgk".replace(" ", ""))
+        msg = MIMEMultipart()
+        msg['Subject'] = f"🧾 Ticket de Compra - Tenis Rey"
+        msg['From'] = "Tenis Rey Tienda"
+        msg['To'] = correo_destino
+        
+        body = f"Hola,\n\nGracias por tu preferencia y por caminar con nosotros. Aquí tienes tu comprobante de compra:\n\n{ticket_texto}\n\n¡Vuelve pronto!"
+        msg.attach(MIMEText(body, 'plain'))
+        
+        server.sendmail("alanbdb64@gmail.com", correo_destino, msg.as_string())
         server.quit()
         return True
     except: return False
@@ -233,7 +251,11 @@ def registrar_historial(accion, sku, modelo, cant, precio=0, costo=0, notas="", 
     try: df_h.to_csv(ARCHIVO_HISTORIAL, mode='a', header=not os.path.exists(ARCHIVO_HISTORIAL), index=False); st.cache_data.clear()
     except: pass
 
-def generar_ticket(sku, modelo, cant, total, user, metodo_pago="Efectivo"):
+def generar_ticket(sku, modelo, cant, total, user, metodo_pago="Efectivo", pago_cliente=0.0, cambio=0.0):
+    pago_str = ""
+    if metodo_pago == "Efectivo":
+        pago_str = f"\n EFECTIVO RECIBIDO: ${pago_cliente:,.2f}\n CAMBIO ENTREGADO: ${cambio:,.2f}\n----------------------------------------"
+        
     return f"""
 ========================================
          TENIS REY - SUCURSAL
@@ -248,7 +270,7 @@ def generar_ticket(sku, modelo, cant, total, user, metodo_pago="Efectivo"):
  
  SKU: {sku}
 ----------------------------------------
-            TOTAL A PAGAR: ${total:,.2f}
+            TOTAL A PAGAR: ${total:,.2f}{pago_str}
 ========================================
          ¡GRACIAS POR SU COMPRA!
        Conserve su ticket para 
@@ -499,17 +521,27 @@ else:
                     tot = sel['Precio_Venta'] * q
                     cp.metric("Importe a Cobrar", f"${tot:,.2f}")
                     
-                    if st.button("PROCESAR TRANSACCIÓN", type="primary", use_container_width=True):
-                        if q > stock:
-                            st.error("Operación denegada: Inventario insuficiente.")
+                    # LOGICA DE CAMBIO EN EFECTIVO
+                    pago_cliente = tot
+                    cambio = 0.0
+                    if metodo == "Efectivo":
+                        pago_cliente = st.number_input("Efectivo Recibido ($)", min_value=0.0, value=float(tot), step=50.0)
+                        cambio = pago_cliente - tot
+                        if cambio >= 0:
+                            st.success(f"💵 Cambio a entregar: **${cambio:,.2f}**")
                         else:
-                            df_inv.at[idx, 'Cantidad'] -= q
-                            guardar_df(df_inv, ARCHIVO_INVENTARIO)
-                            registrar_historial("VENTA", sel['SKU'], sel['Modelo'], q, sel['Precio_Venta'], sel['Costo_Unitario'], "Venta Directa TPV", metodo)
-                            st.session_state.ultimo_ticket = generar_ticket(sel['SKU'], sel['Modelo'], q, tot, st.session_state.nombre_usuario, metodo)
-                            st.success("Transacción registrada correctamente.")
-                            time.sleep(0.5)
-                            st.rerun()
+                            st.error(f"Faltan **${abs(cambio):,.2f}** para completar el pago.")
+
+                    disable_btn = True if (metodo == "Efectivo" and pago_cliente < tot) else False
+                    
+                    if st.button("PROCESAR TRANSACCIÓN", type="primary", use_container_width=True, disabled=disable_btn):
+                        df_inv.at[idx, 'Cantidad'] -= q
+                        guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                        registrar_historial("VENTA", sel['SKU'], sel['Modelo'], q, sel['Precio_Venta'], sel['Costo_Unitario'], "Venta Directa TPV", metodo)
+                        st.session_state.ultimo_ticket = generar_ticket(sel['SKU'], sel['Modelo'], q, tot, st.session_state.nombre_usuario, metodo, pago_cliente, cambio)
+                        st.success("Transacción registrada correctamente.")
+                        time.sleep(0.5)
+                        st.rerun()
                 else:
                     st.error("El artículo seleccionado se encuentra agotado.")
                     st.button("PROCESAR TRANSACCIÓN", disabled=True, key="btn_agotado")
@@ -518,6 +550,29 @@ else:
             st.info("Comprobante de Transacción")
             if st.session_state.ultimo_ticket:
                 st.code(st.session_state.ultimo_ticket, language="text")
+                
+                # ENVÍO DE TICKET AL CLIENTE
+                st.markdown("#### 📤 Enviar Ticket al Cliente")
+                send_method = st.radio("Método de envío", ["WhatsApp", "Correo Electrónico"], horizontal=True, label_visibility="collapsed")
+                
+                if send_method == "WhatsApp":
+                    num_wa = st.text_input("Número de WhatsApp (10 dígitos)", placeholder="Ej: 5512345678")
+                    if num_wa and len(num_wa) >= 10:
+                        ticket_encoded = urllib.parse.quote(st.session_state.ultimo_ticket)
+                        wa_link = f"https://wa.me/52{num_wa}?text={ticket_encoded}"
+                        st.link_button("🟢 Enviar por WhatsApp", wa_link, use_container_width=True)
+                
+                elif send_method == "Correo Electrónico":
+                    correo_envio = st.text_input("Correo electrónico del cliente", placeholder="cliente@correo.com")
+                    if st.button("📧 Enviar por Correo"):
+                        if "@" in correo_envio and "." in correo_envio:
+                            with st.spinner("Enviando correo..."):
+                                if enviar_ticket_correo(correo_envio, st.session_state.ultimo_ticket):
+                                    st.success("Ticket enviado al correo del cliente.")
+                                else:
+                                    st.error("Error al enviar el correo. Verifique la conexión.")
+                        else:
+                            st.warning("Ingrese un correo válido.")
 
     # 3. INVENTARIO
     with t_inv:
