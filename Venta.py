@@ -639,33 +639,60 @@ else:
                             time.sleep(0.5); st.rerun()
 
             with c_action:
-                st.markdown("#### 🚀 Centro de Acción Rápida")
+                st.markdown("#### 🚀 Gestión y Acción Rápida")
                 if not df_crm.empty:
-                    contacto_sel = st.selectbox("Seleccione a quién contactar:", df_crm['Nombre'].unique())
+                    contacto_sel = st.selectbox("Seleccione a quién contactar / editar:", df_crm['Nombre'].unique())
                     datos_contacto = df_crm[df_crm['Nombre'] == contacto_sel].iloc[0]
-                    num_correo = str(datos_contacto['Contacto']).strip()
                     
-                    st.info(f"**Contacto:** {num_correo}\n\n**Nota:** {datos_contacto['Mensaje_Nota']}")
+                    accion_crm = st.radio("Acción:", ["Contactar", "Editar", "Eliminar"], horizontal=True)
                     
-                    msg_pred = f"Hola {contacto_sel}, te contactamos de la gerencia de Tenis Rey."
-                    num_limpio = ''.join(filter(str.isdigit, num_correo))
+                    if accion_crm == "Contactar":
+                        num_correo = str(datos_contacto['Contacto']).strip()
+                        st.info(f"**Contacto:** {num_correo}\n\n**Nota:** {datos_contacto['Mensaje_Nota']}")
+                        
+                        msg_pred = f"Hola {contacto_sel}, te contactamos de la gerencia de Tenis Rey."
+                        num_limpio = ''.join(filter(str.isdigit, num_correo))
+                        
+                        if num_limpio and len(num_limpio) >= 10:
+                            link_wa = f"https://wa.me/52{num_limpio}?text={msg_pred.replace(' ', '%20')}"
+                            st.link_button("🟢 Enviar WhatsApp Web", link_wa, use_container_width=True)
+                        
+                        if "@" in num_correo and "." in num_correo:
+                            link_mail = f"mailto:{num_correo}?subject=Seguimiento%20Tenis%20Rey&body={msg_pred.replace(' ', '%20')}"
+                            st.link_button("📧 Redactar Correo Electrónico", link_mail, use_container_width=True)
                     
-                    # Generador de botones dinámicos según el dato guardado
-                    if num_limpio and len(num_limpio) >= 10:
-                        link_wa = f"https://wa.me/52{num_limpio}?text={msg_pred.replace(' ', '%20')}"
-                        st.link_button("🟢 Enviar WhatsApp Web", link_wa, use_container_width=True)
-                    
-                    if "@" in num_correo and "." in num_correo:
-                        link_mail = f"mailto:{num_correo}?subject=Seguimiento%20Tenis%20Rey&body={msg_pred.replace(' ', '%20')}"
-                        st.link_button("📧 Redactar Correo Electrónico", link_mail, use_container_width=True)
+                    elif accion_crm == "Editar":
+                        with st.form("edit_crm_form"):
+                            e_tipo = st.radio("Clasificación:", ["Cliente", "Proveedor"], index=0 if datos_contacto['Tipo']=='Cliente' else 1, horizontal=True)
+                            e_contacto = st.text_input("Teléfono o Correo", value=datos_contacto['Contacto'])
+                            e_nota = st.text_area("Nota o Petición", value=datos_contacto['Mensaje_Nota'])
+                            if st.form_submit_button("Guardar Cambios"):
+                                idx_c = df_crm[df_crm['Nombre'] == contacto_sel].index[0]
+                                df_crm.at[idx_c, 'Tipo'] = e_tipo
+                                df_crm.at[idx_c, 'Contacto'] = e_contacto
+                                df_crm.at[idx_c, 'Mensaje_Nota'] = e_nota
+                                guardar_df(df_crm, ARCHIVO_CRM)
+                                st.success("Contacto actualizado.")
+                                time.sleep(0.5); st.rerun()
+                                
+                    elif accion_crm == "Eliminar":
+                        st.warning(f"¿Desea eliminar a {contacto_sel} permanentemente?")
+                        if st.button("Confirmar Eliminación", type="primary"):
+                            df_crm = df_crm[df_crm['Nombre'] != contacto_sel]
+                            guardar_df(df_crm, ARCHIVO_CRM)
+                            st.success("Contacto eliminado.")
+                            time.sleep(0.5); st.rerun()
                 else:
                     st.info("Directorio vacío.")
             
             st.divider()
             c_cli, c_pro = st.columns(2)
+            
+            df_crm_sorted = df_crm.sort_values(by='Fecha', ascending=False)
+            
             with c_cli:
                 st.markdown("##### Clientes")
-                st.dataframe(df_crm[df_crm['Tipo']=='Cliente'][['Fecha', 'Nombre', 'Contacto']], hide_index=True)
+                st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Cliente'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
             with c_pro:
                 st.markdown("##### Proveedores")
-                st.dataframe(df_crm[df_crm['Tipo']=='Proveedor'][['Fecha', 'Nombre', 'Contacto']], hide_index=True)
+                st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Proveedor'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
