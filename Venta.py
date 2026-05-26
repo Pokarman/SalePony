@@ -58,7 +58,7 @@ st.markdown("""
     }
     div[data-baseweb="select"] span { color: var(--text-color) !important; }
 
-    /* BOTONES SPORT ELITE */
+    /* BOTONES SPORT */
     div.stButton > button {
         width: 100%;
         background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
@@ -263,7 +263,7 @@ if not st.session_state.sesion_iniciada:
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("""
             <div class="login-card">
-                <h1 style='text-align: center; margin-bottom: 0; font-size: 2.8rem;'>👑 TENIS REY <span style='color:#E63946'>ELITE</span></h1>
+                <h1 style='text-align: center; margin-bottom: 0; font-size: 2.8rem;'>👑 TENIS REY <span style='color:#E63946'>SPORT</span></h1>
                 <p style='text-align: center; opacity: 0.8; letter-spacing: 2px; font-weight: 600; color: #E63946;'>SISTEMA DE GESTIÓN Y COSTEO</p>
                 <hr style='border-color: rgba(230, 57, 70, 0.3);'>
             </div>
