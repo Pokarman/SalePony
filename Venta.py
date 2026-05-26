@@ -109,6 +109,7 @@ def enviar_correo_soporte(mensaje, adjunto=None):
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
+        # NOTA: Para producción, usar variables de entorno o un sistema seguro de secretos.
         server.login("alanbdb64@gmail.com", "dxah wqco wygs bjgk".replace(" ", ""))
         msg = MIMEMultipart()
         msg['Subject'] = f"🚨 Alerta de Sistema (SportKing) - {datetime.now().strftime('%H:%M')}"
@@ -208,7 +209,7 @@ def generar_ticket(carrito_items, total, user, metodo_pago="Efectivo", pago_clie
         
     ticket_txt = f"""
 ========================================
-         SPORTKING - SUCURSAL
+          SPORTKING - SUCURSAL
 ========================================
  Fecha:   {datetime.now().strftime("%d/%m/%Y %H:%M")}
  Cajero:  {user}
@@ -220,7 +221,7 @@ def generar_ticket(carrito_items, total, user, metodo_pago="Efectivo", pago_clie
             TOTAL A PAGAR: ${total:,.2f}{pago_str}
 ========================================
          ¡GRACIAS POR SU COMPRA!
-      Conserve su ticket para 
+       Conserve su ticket para 
         cualquier aclaración.
 ========================================
     """
@@ -510,6 +511,7 @@ else:
                     col_info1.markdown("<h1>👟</h1>", unsafe_allow_html=True)
                 
                 with col_info2:
+                    # Calcular stock real disponible considerando lo que ya está en el carrito
                     qty_in_cart = sum(item['Cantidad'] for item in st.session_state.carrito if item['SKU'] == sel['SKU'])
                     stock_real = int(df_inv.at[idx, 'Cantidad']) - qty_in_cart
                     stock_min = int(df_inv.at[idx, 'Stock_Minimo'])
@@ -624,6 +626,7 @@ else:
                 disable_btn = True if (metodo == "Efectivo" and pago_cliente < tot_carrito) else False
                 
                 if st.button("✅ PROCESAR TRANSACCIÓN MULTIPLE", type="primary", use_container_width=True, disabled=disable_btn):
+                    # Procesar cada item del carrito
                     for item in st.session_state.carrito:
                         idx_inv = df_inv[df_inv['SKU']==item['SKU']].index[0]
                         df_inv.at[idx_inv, 'Cantidad'] -= item['Cantidad']
@@ -633,7 +636,7 @@ else:
                     txt_ticket, html_ticket = generar_ticket(st.session_state.carrito, tot_carrito, st.session_state.nombre_usuario, metodo, pago_cliente, cambio)
                     st.session_state.ultimo_ticket = txt_ticket
                     st.session_state.ultimo_ticket_html = html_ticket
-                    st.session_state.carrito = [] 
+                    st.session_state.carrito = [] # Limpiar carrito
                     st.session_state.busqueda_manual = "" 
                     st.success("Transacción registrada correctamente.")
                     time.sleep(0.5)
@@ -841,7 +844,7 @@ else:
                         com['Comisión Base (3%)'] = com['Monto_Venta'] * 0.03
                         
                         meta = st.number_input("Meta de Venta para Bono Extra ($):", value=10000)
-                        bono_pct = st.number_input("Porcentaje de Bono sobre excedente (%):", value=5.0) / 100
+                        bono_pct = st.number_input("Porcentaje de Bono sobre excedente (%)", value=5.0) / 100
                         com['Bono Extra'] = com.apply(lambda x: (x['Monto_Venta'] - meta) * bono_pct if x['Monto_Venta'] >= meta else 0, axis=1)
                         com['Total a Pagar'] = com['Comisión Base (3%)'] + com['Bono Extra']
                         
@@ -877,7 +880,6 @@ else:
         with t_crm:
             crm_tabs = st.tabs(["👥 Directorio de Contactos", "💬 Bandeja de Entrada (Chats)", "⚙️ Configuración APIs (Webhooks)"])
             
-            # --- Pestaña 1: Directorio (Lo que ya tenías) ---
             with crm_tabs[0]:
                 c_form, c_action = st.columns([1, 1])
                 
@@ -900,4 +902,101 @@ else:
                     st.markdown("#### 🚀 Gestión y Acción Rápida")
                     if not df_crm.empty:
                         contacto_sel = st.selectbox("Seleccione a quién contactar / editar:", df_crm['Nombre'].unique())
-                        datos_contacto = df_
+                        # CORRECCIÓN APLICADA AQUÍ:
+                        datos_contacto = df_crm[df_crm['Nombre'] == contacto_sel].iloc[0]
+                        
+                        accion_crm = st.radio("Acción:", ["Contactar", "Editar", "Eliminar"], horizontal=True)
+                        
+                        if accion_crm == "Contactar":
+                            num_correo = str(datos_contacto['Contacto']).strip()
+                            st.info(f"**Contacto:** {num_correo}\n\n**Nota:** {datos_contacto['Mensaje_Nota']}")
+                            
+                            msg_pred = f"Hola {contacto_sel}, te contactamos de la gerencia de SportKing."
+                            num_limpio = ''.join(filter(str.isdigit, num_correo))
+                            
+                            if num_limpio and len(num_limpio) >= 10:
+                                link_wa = f"https://wa.me/52{num_limpio}?text={msg_pred.replace(' ', '%20')}"
+                                st.link_button("🟢 Enviar WhatsApp Web", link_wa, use_container_width=True)
+                            
+                            if "@" in num_correo and "." in num_correo:
+                                link_mail = f"mailto:{num_correo}?subject=Seguimiento%20SportKing&body={msg_pred.replace(' ', '%20')}"
+                                st.link_button("📧 Redactar Correo Electrónico", link_mail, use_container_width=True)
+                        
+                        elif accion_crm == "Editar":
+                            with st.form("edit_crm_form"):
+                                e_tipo = st.radio("Clasificación:", ["Cliente", "Proveedor"], index=0 if datos_contacto['Tipo']=='Cliente' else 1, horizontal=True)
+                                e_contacto = st.text_input("Teléfono o Correo", value=datos_contacto['Contacto'])
+                                e_nota = st.text_area("Nota o Petición", value=datos_contacto['Mensaje_Nota'])
+                                if st.form_submit_button("Guardar Cambios"):
+                                    idx_c = df_crm[df_crm['Nombre'] == contacto_sel].index[0]
+                                    df_crm.at[idx_c, 'Tipo'] = e_tipo
+                                    df_crm.at[idx_c, 'Contacto'] = e_contacto
+                                    df_crm.at[idx_c, 'Mensaje_Nota'] = e_nota
+                                    guardar_df(df_crm, ARCHIVO_CRM)
+                                    st.success("Contacto actualizado.")
+                                    time.sleep(0.5); st.rerun()
+                                    
+                        elif accion_crm == "Eliminar":
+                            st.warning(f"¿Desea eliminar a {contacto_sel} permanentemente?")
+                            if st.button("Confirmar Eliminación", type="primary"):
+                                df_crm = df_crm[df_crm['Nombre'] != contacto_sel]
+                                guardar_df(df_crm, ARCHIVO_CRM)
+                                st.success("Contacto eliminado.")
+                                time.sleep(0.5); st.rerun()
+                    else:
+                        st.info("Directorio vacío.")
+                
+                st.divider()
+                c_cli, c_pro = st.columns(2)
+                
+                df_crm_sorted = df_crm.sort_values(by='Fecha', ascending=False)
+                
+                with c_cli:
+                    st.markdown("##### Clientes")
+                    st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Cliente'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
+                with c_pro:
+                    st.markdown("##### Proveedores")
+                    st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Proveedor'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
+            
+            with crm_tabs[1]:
+                st.markdown("#### 💬 Mensajes Recibidos Automáticamente")
+                st.info("💡 **Aviso:** Streamlit requiere un servidor secundario (como Flask) para recibir Webhooks. Cuando el servidor externo reciba un mensaje de la API de Meta, lo escribirá en el archivo 'tr_inbox.csv' y aparecerá aquí.")
+                
+                df_inbox = cargar_csv(ARCHIVO_INBOX, ['Fecha', 'Plataforma', 'Remitente', 'Mensaje'])
+                
+                if df_inbox.empty:
+                    st.write("No hay mensajes nuevos en tu bandeja.")
+                    if st.button("Simular mensaje entrante (Prueba)"):
+                        nuevo_msg = {'Fecha': datetime.now().strftime("%Y-%m-%d %H:%M"), 'Plataforma': 'WhatsApp', 'Remitente': '5576562718', 'Mensaje': 'Hola, ¿tienen disponibilidad de la talla 27?'}
+                        df_inbox = pd.concat([df_inbox, pd.DataFrame([nuevo_msg])], ignore_index=True)
+                        df_inbox.to_csv(ARCHIVO_INBOX, index=False)
+                        st.rerun()
+                else:
+                    if st.button("Limpiar Bandeja"):
+                        if os.path.exists(ARCHIVO_INBOX): os.remove(ARCHIVO_INBOX)
+                        st.rerun()
+                    
+                    st.divider()
+                    for _, msg in df_inbox.iterrows():
+                        with st.chat_message("user", avatar="💬"):
+                            st.write(f"**{msg['Remitente']}** vía {msg['Plataforma']} - {msg['Fecha']}")
+                            st.write(f"_{msg['Mensaje']}_")
+
+            with crm_tabs[2]:
+                st.markdown("#### ⚙️ Credenciales de Integración (Meta for Developers)")
+                st.write("Llena estos datos con la información de tu app en Meta. El servidor Flask usará estas claves para conectarse.")
+                
+                df_config = cargar_csv(ARCHIVO_CONFIG_API, ['WA_TOKEN', 'WA_PHONE_ID', 'WEBHOOK_TOKEN'])
+                val_token = df_config.iloc[0]['WA_TOKEN'] if not df_config.empty else ""
+                val_phone = df_config.iloc[0]['WA_PHONE_ID'] if not df_config.empty else ""
+                val_webhk = df_config.iloc[0]['WEBHOOK_TOKEN'] if not df_config.empty else ""
+                
+                with st.form("api_config_form"):
+                    wa_token = st.text_input("WhatsApp Business API Token (Permanent o Temporal)", value=val_token, type="password")
+                    wa_phone_id = st.text_input("Phone Number ID", value=val_phone)
+                    wa_webhook_token = st.text_input("Webhook Verify Token (El que pondrás en tu script Flask)", value=val_webhk)
+                    
+                    if st.form_submit_button("Guardar Credenciales"):
+                        nuevo_config = {'WA_TOKEN': wa_token, 'WA_PHONE_ID': wa_phone_id, 'WEBHOOK_TOKEN': wa_webhook_token}
+                        pd.DataFrame([nuevo_config]).to_csv(ARCHIVO_CONFIG_API, index=False)
+                        st.success("Credenciales de API guardadas correctamente para uso del servidor.")
