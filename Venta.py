@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 # ==========================================
 # 1. CONFIGURACIÓN VISUAL CORPORATIVA
 # ==========================================
-st.set_page_config(page_title="Tenis Rey | ERP", page_icon="🏢", layout="wide")
+st.set_page_config(page_title="Tenis Rey | Sport", page_icon="🏢", layout="wide")
 
 # CSS: Diseño responsivo, limpio y profesional
 st.markdown("""
