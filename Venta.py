@@ -7,117 +7,45 @@ import uuid
 import hashlib
 import re
 import smtplib 
-import urllib.parse # Nuevo: para formatear el texto de WhatsApp
 from email.mime.text import MIMEText 
 from email.mime.multipart import MIMEMultipart 
-from email.mime.image import MIMEImage
 from datetime import datetime, timedelta
 
 # ==========================================
-# 1. CONFIGURACIÓN VISUAL CORPORATIVA (MEJORADA)
+# 1. CONFIGURACIÓN VISUAL CORPORATIVA
 # ==========================================
 st.set_page_config(page_title="Tenis Rey | Sport", page_icon="👟", layout="wide")
 
-# CSS: Diseño premium, efectos dinámicos, sombras y transiciones
+# CSS: Diseño responsivo, limpio y profesional
 st.markdown("""
     <style>
     /* FUENTE CORPORATIVA */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
-    /* TÍTULOS CON GRADIENTE DINÁMICO */
-    h1, h2, h3 { 
-        background: linear-gradient(135deg, #FF1744 0%, #B71C1C 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: 800 !important; 
-        letter-spacing: -0.5px; 
-    }
+    /* TÍTULOS */
+    h1, h2, h3 { color: #B71C1C !important; font-weight: 700 !important; letter-spacing: -0.5px; }
 
-    /* TARJETAS DE MÉTRICAS (KPIs) - EFECTO GLASS/PREMIUM */
-    div[data-testid="stMetric"] { 
-        background: linear-gradient(145deg, var(--secondary-background-color), rgba(183, 28, 28, 0.03));
-        border: 1px solid rgba(183, 28, 28, 0.2); 
-        border-left: 5px solid #FF1744; 
-        border-radius: 12px; 
-        padding: 20px; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
-        transition: all 0.3s ease-in-out;
-    }
-    div[data-testid="stMetric"]:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(255, 23, 68, 0.15);
-        border-left: 5px solid #D50000;
-    }
-    div[data-testid="stMetricLabel"] { color: var(--text-color) !important; opacity: 0.7; font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; }
-    div[data-testid="stMetricValue"] { color: var(--text-color) !important; font-weight: 800; font-size: 2rem; }
+    /* TARJETAS DE MÉTRICAS (KPIs) */
+    div[data-testid="stMetric"] { background-color: var(--secondary-background-color); border: 1px solid rgba(128, 128, 128, 0.2); border-left: 4px solid #B71C1C; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    div[data-testid="stMetricLabel"] { color: var(--text-color) !important; opacity: 0.8; font-weight: 600; }
+    div[data-testid="stMetricValue"] { color: var(--text-color) !important; font-weight: 700; }
 
-    /* INPUTS Y SELECTBOXES - ANIMADOS */
-    .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div, .stTextArea textarea { 
-        background-color: var(--secondary-background-color) !important; 
-        color: var(--text-color) !important; 
-        border: 1px solid rgba(128, 128, 128, 0.2) !important; 
-        border-radius: 8px !important; 
-        transition: all 0.3s ease;
-    }
-    .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus, .stSelectbox div[data-baseweb="select"] > div:focus-within { 
-        border-color: #FF1744 !important; 
-        box-shadow: 0 0 0 2px rgba(255, 23, 68, 0.2) !important; 
-    }
+    /* INPUTS Y SELECTBOXES */
+    .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div, .stTextArea textarea { background-color: var(--secondary-background-color) !important; color: var(--text-color) !important; border: 1px solid rgba(128, 128, 128, 0.3) !important; border-radius: 6px !important; }
+    .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus { border-color: #B71C1C !important; box-shadow: 0 0 0 1px #B71C1C !important; }
     div[data-baseweb="select"] span { color: var(--text-color) !important; }
 
-    /* BOTONES PRIMARIOS - EFECTO HOVER PROFESIONAL */
-    div.stButton > button { 
-        width: 100%; 
-        background: linear-gradient(135deg, #D50000 0%, #B71C1C 100%); 
-        color: #ffffff !important; 
-        font-weight: 700; 
-        border: none; 
-        border-radius: 8px; 
-        padding: 0.5rem 1rem;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-        box-shadow: 0 4px 6px rgba(183, 28, 28, 0.2);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    div.stButton > button:hover { 
-        background: linear-gradient(135deg, #FF1744 0%, #D50000 100%); 
-        transform: translateY(-2px) scale(1.01); 
-        box-shadow: 0 8px 20px rgba(255, 23, 68, 0.4); 
-    }
-    div.stButton > button:active {
-        transform: translateY(1px) scale(0.98);
-    }
+    /* BOTONES PRIMARIOS */
+    div.stButton > button { width: 100%; background-color: #B71C1C; color: #ffffff !important; font-weight: 600; border: 1px solid #B71C1C; border-radius: 6px; transition: all 0.2s ease; }
+    div.stButton > button:hover { background-color: #D32F2F; border-color: #D32F2F; color: #ffffff !important; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(183, 28, 28, 0.2); }
 
-    /* LOGIN CARD CON GLASSMORPHISM */
-    .login-card { 
-        background: var(--secondary-background-color); 
-        padding: 3rem; 
-        border-radius: 16px; 
-        border: 1px solid rgba(255, 23, 68, 0.15); 
-        box-shadow: 0 15px 35px rgba(0,0,0,0.1), 0 0 20px rgba(255, 23, 68, 0.05); 
-        text-align: center; 
-        backdrop-filter: blur(10px);
-    }
+    /* LOGIN CARD */
+    .login-card { background-color: var(--secondary-background-color); padding: 2.5rem; border-radius: 12px; border: 1px solid rgba(183, 28, 28, 0.2); box-shadow: 0 8px 24px rgba(0,0,0,0.05); text-align: center; }
     
-    /* PESTAÑAS (TABS) MEJORADAS */
-    .stTabs [data-baseweb="tab-list"] { 
-        border-bottom: 2px solid rgba(128,128,128,0.1); 
-        gap: 20px;
-    }
-    .stTabs [data-baseweb="tab-list"] button {
-        padding-bottom: 10px !important;
-        transition: color 0.3s ease;
-    }
-    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] { 
-        background-color: transparent; 
-        border-bottom: 3px solid #FF1744; 
-        color: #FF1744 !important; 
-        font-weight: 700; 
-    }
-    .stTabs [data-baseweb="tab-list"] button[aria-selected="false"]:hover {
-        color: #D50000 !important;
-    }
+    /* PESTAÑAS */
+    .stTabs [data-baseweb="tab-list"] { border-bottom: 1px solid rgba(128,128,128,0.2); }
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] { background-color: rgba(183, 28, 28, 0.05); border-bottom: 3px solid #B71C1C; color: #B71C1C !important; font-weight: 600; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -127,7 +55,7 @@ ARCHIVO_PEDIDOS = 'tr_pedidos.csv'
 ARCHIVO_USUARIOS = 'tr_usuarios.csv' 
 ARCHIVO_CONFIG_API = 'tr_config_apis.csv'
 ARCHIVO_CRM = 'tr_crm.csv' 
-ARCHIVO_INBOX = 'tr_inbox.csv'
+ARCHIVO_INBOX = 'tr_inbox.csv' # Nuevo archivo para Bandeja de Entrada
 
 # ==========================================
 # 2. SEGURIDAD Y DATOS
@@ -163,41 +91,17 @@ if 'sesion_iniciada' not in st.session_state:
     st.session_state.nombre_usuario = None
     st.session_state.usuario_id = None
     st.session_state.ultimo_ticket = ""
+    st.session_state.carrito = []
     if 'contador_soporte' not in st.session_state: st.session_state.contador_soporte = 0
 
 def enviar_correo_soporte(mensaje, adjunto=None):
-    try:
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login("alanbdb64@gmail.com", "dxah wqco wygs bjgk".replace(" ", ""))
         msg = MIMEMultipart()
         msg['Subject'] = f"🚨 Alerta de Sistema (Tenis Rey) - {datetime.now().strftime('%H:%M')}"
         msg.attach(MIMEText(f"Usuario reporta: {st.session_state.nombre_usuario}\n\nDetalle de la incidencia:\n{mensaje}", 'plain'))
-        
-        if adjunto is not None:
-            img_data = adjunto.read()
-            imagen = MIMEImage(img_data, name=adjunto.name)
-            msg.attach(imagen)
-
         server.sendmail("alanbdb64@gmail.com", "alanbdb64@gmail.com", msg.as_string())
-        server.quit()
-        return True
-    except: return False
-
-def enviar_ticket_correo(correo_destino, ticket_texto):
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login("alanbdb64@gmail.com", "dxah wqco wygs bjgk".replace(" ", ""))
-        msg = MIMEMultipart()
-        msg['Subject'] = f"🧾 Ticket de Compra - Tenis Rey"
-        msg['From'] = "Tenis Rey Tienda"
-        msg['To'] = correo_destino
-        
-        body = f"Hola,\n\nGracias por tu preferencia y por caminar con nosotros. Aquí tienes tu comprobante de compra:\n\n{ticket_texto}\n\n¡Vuelve pronto!"
-        msg.attach(MIMEText(body, 'plain'))
-        
-        server.sendmail("alanbdb64@gmail.com", correo_destino, msg.as_string())
         server.quit()
         return True
     except: return False
@@ -251,10 +155,15 @@ def registrar_historial(accion, sku, modelo, cant, precio=0, costo=0, notas="", 
     try: df_h.to_csv(ARCHIVO_HISTORIAL, mode='a', header=not os.path.exists(ARCHIVO_HISTORIAL), index=False); st.cache_data.clear()
     except: pass
 
-def generar_ticket(sku, modelo, cant, total, user, metodo_pago="Efectivo", pago_cliente=0.0, cambio=0.0):
+def generar_ticket(carrito_items, total, user, metodo_pago="Efectivo", pago_cliente=0.0, cambio=0.0):
     pago_str = ""
     if metodo_pago == "Efectivo":
         pago_str = f"\n EFECTIVO RECIBIDO: ${pago_cliente:,.2f}\n CAMBIO ENTREGADO: ${cambio:,.2f}\n----------------------------------------"
+        
+    items_str = ""
+    for item in carrito_items:
+        items_str += f" {str(item['Cantidad']).center(4)} | {item['Modelo'][:19]:<19} | ${item['Subtotal']:,.2f}\n"
+        items_str += f" SKU: {item['SKU']}\n"
         
     return f"""
 ========================================
@@ -266,14 +175,11 @@ def generar_ticket(sku, modelo, cant, total, user, metodo_pago="Efectivo", pago_
 ----------------------------------------
  CANT | DESCRIPCION            | IMPORTE
 ----------------------------------------
- {str(cant).center(4)} | {modelo[:19]:<19} | ${total:,.2f}
- 
- SKU: {sku}
-----------------------------------------
+{items_str}----------------------------------------
             TOTAL A PAGAR: ${total:,.2f}{pago_str}
 ========================================
          ¡GRACIAS POR SU COMPRA!
-       Conserve su ticket para 
+      Conserve su ticket para 
         cualquier aclaración.
 ========================================
     """
@@ -333,7 +239,7 @@ else:
     df_crm = cargar_csv(ARCHIVO_CRM, ['Tipo', 'Nombre', 'Contacto', 'Mensaje_Nota', 'Fecha'])
     
     if df_crm.empty:
-        df_crm = pd.DataFrame([{'Tipo': 'Proveedor', 'Nombre': 'Alan (Soporte Técnico)', 'Contacto': '5576562718 / alanbdb64@gmail.com', 'Mensaje_Nota': 'Contacto principal del sistema.', 'Fecha': datetime.now().strftime("%Y-%m-%d")}])
+        df_crm = pd.DataFrame([{'Tipo': 'Proveedor', 'Nombre': 'Alan (Soporte Técnico)', 'Contacto': '6676562718 / alanbdb64@gmail.com', 'Mensaje_Nota': 'Contacto principal del sistema.', 'Fecha': datetime.now().strftime("%Y-%m-%d")}])
         guardar_df(df_crm, ARCHIVO_CRM)
     
     # --- BARRA LATERAL ---
@@ -410,20 +316,12 @@ else:
         with st.expander("🛠️ Reportar Incidencia", expanded=False):
             key_din = f"txt_soporte_{st.session_state.contador_soporte}"
             msg_err = st.text_area("Describa el error del sistema:", key=key_din)
-            archivo_adjunto = st.file_uploader("Adjuntar captura de pantalla (Opcional)", type=['png', 'jpg', 'jpeg'], key=f"adjunto_{st.session_state.contador_soporte}")
-            
             if st.button("Enviar Ticket de Soporte"):
-                if msg_err:
-                    with st.spinner("Enviando reporte..."):
-                        if enviar_correo_soporte(msg_err, archivo_adjunto):
-                            st.success("Ticket enviado al administrador.")
-                            st.session_state.contador_soporte += 1
-                            time.sleep(1)
-                            st.rerun()
-                        else:
-                            st.error("Hubo un error al enviar el reporte. Verifique la conexión.")
-                else:
-                    st.warning("Debe describir el error para poder enviarlo.")
+                if msg_err and enviar_correo_soporte(msg_err):
+                    st.success("Ticket enviado al administrador.")
+                    st.session_state.contador_soporte += 1
+                    time.sleep(1)
+                    st.rerun()
 
         if st.button("Cerrar Sesión"):
             st.session_state.sesion_iniciada = False
@@ -486,9 +384,9 @@ else:
 
     # 2. TPV (PUNTO DE VENTA)
     with t_pos:
-        c1, c2 = st.columns([2, 1])
+        c1, c2 = st.columns([1.2, 1])
         with c1:
-            st.markdown("#### Registro de Venta Deportiva")
+            st.markdown("#### Búsqueda de Artículo")
             scan = st.text_input("Búsqueda de Artículo:", placeholder="Escanee código de barras o ingrese SKU/descripción...", label_visibility="collapsed")
             sel = None
             if scan:
@@ -506,73 +404,114 @@ else:
             
             if sel is not None:
                 idx = df_inv[df_inv['SKU']==sel['SKU']].index[0]
-                stock = int(df_inv.at[idx, 'Cantidad'])
+                
+                # Descontar visualmente lo que ya está en el carrito para no vender de más
+                qty_in_cart = sum(item['Cantidad'] for item in st.session_state.carrito if item['SKU'] == sel['SKU'])
+                stock_real = int(df_inv.at[idx, 'Cantidad']) - qty_in_cart
                 stock_min = int(df_inv.at[idx, 'Stock_Minimo'])
                 
-                if stock <= stock_min:
-                    st.warning(f"⚠️ **{sel['Modelo']}** | Inventario Físico: {stock} unidades (¡Nivel Bajo!)")
+                if stock_real <= stock_min:
+                    st.warning(f"⚠️ **{sel['Modelo']}** | Disponible para añadir: {stock_real} unidades (¡Nivel Bajo!)")
                 else:
-                    st.info(f"**{sel['Modelo']}** | Inventario Físico: {stock} unidades")
+                    st.info(f"**{sel['Modelo']}** | Disponible para añadir: {stock_real} unidades")
                 
-                if stock > 0:
-                    cq, cm, cp = st.columns(3)
-                    q = cq.number_input("Cantidad a vender", 1, stock, 1)
-                    metodo = cm.selectbox("Método de Pago", ["Efectivo", "Tarjeta", "Transferencia"])
-                    tot = sel['Precio_Venta'] * q
-                    cp.metric("Importe a Cobrar", f"${tot:,.2f}")
+                if stock_real > 0:
+                    cq, cp = st.columns(2)
+                    q = cq.number_input("Cantidad a añadir", 1, stock_real, 1)
+                    tot_item = sel['Precio_Venta'] * q
+                    cp.metric("Subtotal Artículo", f"${tot_item:,.2f}")
                     
-                    # LOGICA DE CAMBIO EN EFECTIVO
-                    pago_cliente = tot
-                    cambio = 0.0
-                    if metodo == "Efectivo":
-                        pago_cliente = st.number_input("Efectivo Recibido ($)", min_value=0.0, value=float(tot), step=50.0)
-                        cambio = pago_cliente - tot
-                        if cambio >= 0:
-                            st.success(f"💵 Cambio a entregar: **${cambio:,.2f}**")
-                        else:
-                            st.error(f"Faltan **${abs(cambio):,.2f}** para completar el pago.")
-
-                    disable_btn = True if (metodo == "Efectivo" and pago_cliente < tot) else False
-                    
-                    if st.button("PROCESAR TRANSACCIÓN", type="primary", use_container_width=True, disabled=disable_btn):
-                        df_inv.at[idx, 'Cantidad'] -= q
-                        guardar_df(df_inv, ARCHIVO_INVENTARIO)
-                        registrar_historial("VENTA", sel['SKU'], sel['Modelo'], q, sel['Precio_Venta'], sel['Costo_Unitario'], "Venta Directa TPV", metodo)
-                        st.session_state.ultimo_ticket = generar_ticket(sel['SKU'], sel['Modelo'], q, tot, st.session_state.nombre_usuario, metodo, pago_cliente, cambio)
-                        st.success("Transacción registrada correctamente.")
+                    if st.button("🛒 AÑADIR AL CARRITO", use_container_width=True):
+                        st.session_state.carrito.append({
+                            'SKU': sel['SKU'],
+                            'Modelo': sel['Modelo'],
+                            'Cantidad': q,
+                            'Precio_Venta': sel['Precio_Venta'],
+                            'Costo_Unitario': sel['Costo_Unitario'],
+                            'Subtotal': tot_item
+                        })
+                        st.success(f"{q}x {sel['Modelo']} añadido al carrito.")
                         time.sleep(0.5)
                         st.rerun()
                 else:
-                    st.error("El artículo seleccionado se encuentra agotado.")
-                    st.button("PROCESAR TRANSACCIÓN", disabled=True, key="btn_agotado")
+                    st.error("El artículo seleccionado se encuentra agotado o ya agregaste todo el stock disponible al carrito.")
+                    st.button("🛒 AÑADIR AL CARRITO", disabled=True, key="btn_agotado")
 
         with c2:
-            st.info("Comprobante de Transacción")
-            if st.session_state.ultimo_ticket:
-                st.code(st.session_state.ultimo_ticket, language="text")
+            st.markdown("#### Carrito de Compras")
+            if not st.session_state.carrito:
+                st.info("El carrito está vacío. Agregue artículos para cobrar.")
                 
-                # ENVÍO DE TICKET AL CLIENTE
-                st.markdown("#### 📤 Enviar Ticket al Cliente")
-                send_method = st.radio("Método de envío", ["WhatsApp", "Correo Electrónico"], horizontal=True, label_visibility="collapsed")
-                
-                if send_method == "WhatsApp":
-                    num_wa = st.text_input("Número de WhatsApp (10 dígitos)", placeholder="Ej: 5512345678")
-                    if num_wa and len(num_wa) >= 10:
-                        ticket_encoded = urllib.parse.quote(st.session_state.ultimo_ticket)
-                        wa_link = f"https://wa.me/52{num_wa}?text={ticket_encoded}"
-                        st.link_button("🟢 Enviar por WhatsApp", wa_link, use_container_width=True)
-                
-                elif send_method == "Correo Electrónico":
-                    correo_envio = st.text_input("Correo electrónico del cliente", placeholder="cliente@correo.com")
-                    if st.button("📧 Enviar por Correo"):
-                        if "@" in correo_envio and "." in correo_envio:
-                            with st.spinner("Enviando correo..."):
-                                if enviar_ticket_correo(correo_envio, st.session_state.ultimo_ticket):
-                                    st.success("Ticket enviado al correo del cliente.")
+                # Muestra el último ticket solo si el carrito está vacío y existe una venta reciente
+                if st.session_state.ultimo_ticket:
+                    with st.expander("🧾 Ver / Enviar Última Transacción", expanded=True):
+                        st.code(st.session_state.ultimo_ticket, language="text")
+                        
+                        st.markdown("#### 📤 Enviar Ticket al Cliente")
+                        send_method = st.radio("Método de envío", ["WhatsApp", "Correo Electrónico"], horizontal=True, label_visibility="collapsed")
+                        
+                        if send_method == "WhatsApp":
+                            num_wa = st.text_input("Número de WhatsApp (10 dígitos)", placeholder="Ej: 5512345678")
+                            if num_wa and len(num_wa) >= 10:
+                                ticket_encoded = urllib.parse.quote(st.session_state.ultimo_ticket)
+                                wa_link = f"https://wa.me/52{num_wa}?text={ticket_encoded}"
+                                st.link_button("🟢 Enviar por WhatsApp", wa_link, use_container_width=True)
+                        
+                        elif send_method == "Correo Electrónico":
+                            correo_envio = st.text_input("Correo electrónico del cliente", placeholder="cliente@correo.com")
+                            if st.button("📧 Enviar por Correo"):
+                                if "@" in correo_envio and "." in correo_envio:
+                                    with st.spinner("Enviando correo..."):
+                                        if enviar_ticket_correo(correo_envio, st.session_state.ultimo_ticket):
+                                            st.success("Ticket enviado al correo del cliente.")
+                                        else:
+                                            st.error("Error al enviar el correo. Verifique la conexión.")
                                 else:
-                                    st.error("Error al enviar el correo. Verifique la conexión.")
-                        else:
-                            st.warning("Ingrese un correo válido.")
+                                    st.warning("Ingrese un correo válido.")
+            else:
+                # Mostrar tabla del carrito
+                df_carrito = pd.DataFrame(st.session_state.carrito)
+                st.dataframe(
+                    df_carrito[['Modelo', 'Cantidad', 'Subtotal']], 
+                    use_container_width=True,
+                    column_config={"Subtotal": st.column_config.NumberColumn(format="$%.2f")}
+                )
+                
+                if st.button("🗑️ Vaciar Carrito"):
+                    st.session_state.carrito = []
+                    st.rerun()
+                    
+                tot_carrito = sum(item['Subtotal'] for item in st.session_state.carrito)
+                st.markdown(f"### Total: ${tot_carrito:,.2f}")
+                
+                metodo = st.selectbox("Método de Pago", ["Efectivo", "Tarjeta", "Transferencia"])
+                
+                # LOGICA DE CAMBIO EN EFECTIVO
+                pago_cliente = tot_carrito
+                cambio = 0.0
+                if metodo == "Efectivo":
+                    pago_cliente = st.number_input("Efectivo Recibido ($)", min_value=0.0, value=float(tot_carrito), step=50.0)
+                    cambio = pago_cliente - tot_carrito
+                    if cambio >= 0:
+                        st.success(f"💵 Cambio a entregar: **${cambio:,.2f}**")
+                    else:
+                        st.error(f"Faltan **${abs(cambio):,.2f}** para completar el pago.")
+
+                disable_btn = True if (metodo == "Efectivo" and pago_cliente < tot_carrito) else False
+                
+                if st.button("✅ PROCESAR TRANSACCIÓN MULTIPLE", type="primary", use_container_width=True, disabled=disable_btn):
+                    # Descontar todo del inventario y registrar en historial iterando el carrito
+                    for item in st.session_state.carrito:
+                        idx_inv = df_inv[df_inv['SKU']==item['SKU']].index[0]
+                        df_inv.at[idx_inv, 'Cantidad'] -= item['Cantidad']
+                        registrar_historial("VENTA", item['SKU'], item['Modelo'], item['Cantidad'], item['Precio_Venta'], item['Costo_Unitario'], "Venta Múltiple TPV", metodo)
+                        
+                    guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                    st.session_state.ultimo_ticket = generar_ticket(st.session_state.carrito, tot_carrito, st.session_state.nombre_usuario, metodo, pago_cliente, cambio)
+                    st.session_state.carrito = [] # Vaciar carrito tras la compra exitosa
+                    st.success("Transacción registrada correctamente.")
+                    time.sleep(0.5)
+                    st.rerun()
 
     # 3. INVENTARIO
     with t_inv:
@@ -753,7 +692,7 @@ else:
                         com['Comisión Base (3%)'] = com['Monto_Venta'] * 0.03
                         
                         meta = st.number_input("Meta de Venta para Bono Extra ($):", value=10000)
-                        bono_pct = st.number_input("Porcentaje de Bono sobre excedente (%)", value=5.0) / 100
+                        bono_pct = st.number_input("Porcentaje de Bono sobre excedente (%):", value=5.0) / 100
                         com['Bono Extra'] = com.apply(lambda x: (x['Monto_Venta'] - meta) * bono_pct if x['Monto_Venta'] >= meta else 0, axis=1)
                         com['Total a Pagar'] = com['Comisión Base (3%)'] + com['Bono Extra']
                         
@@ -789,6 +728,7 @@ else:
         with t_crm:
             crm_tabs = st.tabs(["👥 Directorio de Contactos", "💬 Bandeja de Entrada (Chats)", "⚙️ Configuración APIs (Webhooks)"])
             
+            # --- Pestaña 1: Directorio (Lo que ya tenías) ---
             with crm_tabs[0]:
                 c_form, c_action = st.columns([1, 1])
                 
@@ -797,7 +737,7 @@ else:
                     with st.form("crm_form", clear_on_submit=True):
                         tipo = st.radio("Clasificación:", ["Cliente", "Proveedor"], horizontal=True)
                         nombre = st.text_input("Nombre / Empresa")
-                        contacto = st.text_input("Teléfono (Ej. 5576562718) o Correo")
+                        contacto = st.text_input("Teléfono (Ej. 6676562718) o Correo")
                         nota = st.text_area("Nota o Petición")
                         if st.form_submit_button("Guardar"):
                             if nombre and contacto:
@@ -856,7 +796,9 @@ else:
                 
                 st.divider()
                 c_cli, c_pro = st.columns(2)
+                
                 df_crm_sorted = df_crm.sort_values(by='Fecha', ascending=False)
+                
                 with c_cli:
                     st.markdown("##### Clientes")
                     st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Cliente'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
@@ -864,6 +806,7 @@ else:
                     st.markdown("##### Proveedores")
                     st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Proveedor'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
             
+            # --- Pestaña 2: Bandeja de Entrada (Preparación para Webhook) ---
             with crm_tabs[1]:
                 st.markdown("#### 💬 Mensajes Recibidos Automáticamente")
                 st.info("💡 **Aviso:** Streamlit requiere un servidor secundario (como Flask) para recibir Webhooks. Cuando el servidor externo reciba un mensaje de la API de Meta, lo escribirá en el archivo 'tr_inbox.csv' y aparecerá aquí.")
@@ -872,8 +815,9 @@ else:
                 
                 if df_inbox.empty:
                     st.write("No hay mensajes nuevos en tu bandeja.")
+                    # Botón para simular entrada de datos por un Webhook externo
                     if st.button("Simular mensaje entrante (Prueba)"):
-                        nuevo_msg = {'Fecha': datetime.now().strftime("%Y-%m-%d %H:%M"), 'Plataforma': 'WhatsApp', 'Remitente': '5576562718', 'Mensaje': 'Hola, ¿tienen disponibilidad de la talla 27?'}
+                        nuevo_msg = {'Fecha': datetime.now().strftime("%Y-%m-%d %H:%M"), 'Plataforma': 'WhatsApp', 'Remitente': '6676562718', 'Mensaje': 'Hola, ¿tienen disponibilidad de la talla 27?'}
                         df_inbox = pd.concat([df_inbox, pd.DataFrame([nuevo_msg])], ignore_index=True)
                         df_inbox.to_csv(ARCHIVO_INBOX, index=False)
                         st.rerun()
@@ -888,6 +832,7 @@ else:
                             st.write(f"**{msg['Remitente']}** vía {msg['Plataforma']} - {msg['Fecha']}")
                             st.write(f"_{msg['Mensaje']}_")
 
+            # --- Pestaña 3: Configuración APIs ---
             with crm_tabs[2]:
                 st.markdown("#### ⚙️ Credenciales de Integración (Meta for Developers)")
                 st.write("Llena estos datos con la información de tu app en Meta. El servidor Flask usará estas claves para conectarse.")
