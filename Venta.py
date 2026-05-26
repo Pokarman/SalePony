@@ -379,7 +379,7 @@ else:
     st.divider()
 
     # PESTAÑAS DE NAVEGACIÓN
-    tabs = st.tabs(["📦 ÓRDENES E-COMMERCE", "🛒 TPV SPORT", "👟 INVENTARIO", "📝 CATÁLOGO", "📊 REPORTES"]) if st.session_state.rol_usuario == "Administrador" else st.tabs(["📦 ÓRDENES", "🛒 TPV", "👟 INVENTARIO"])
+    tabs = st.tabs(["📦 ÓRDENES E-COMMERCE", "🛒 Vender o Salida de Mercancía", "👟 INGRESAR O EDITAR INVENTARIO", "📝 CATÁLOGO", "📊 REPORTES"]) if st.session_state.rol_usuario == "Administrador" else st.tabs(["📦 ÓRDENES", "🛒 TPV", "👟 INVENTARIO"])
     t_ped, t_pos, t_inv = tabs[0], tabs[1], tabs[2]
     t_adm = tabs[3] if len(tabs) > 3 else None
     t_rep = tabs[4] if len(tabs) > 3 else None
