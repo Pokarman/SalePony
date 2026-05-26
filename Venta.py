@@ -425,3 +425,41 @@ else:
             with c_pro:
                 st.markdown("##### Mensajes de Proveedores")
                 st.dataframe(df_crm[df_crm['Tipo']=='Proveedor'][['Fecha', 'Nombre', 'Mensaje_Nota']], hide_index=True)
+
+            st.divider()
+            # ==========================================
+            # NUEVO: CENTRO DE ENVÍO DE MENSAJES REALES
+            # ==========================================
+            st.markdown("#### 🚀 Centro de Envío Rápido")
+            if not df_crm.empty:
+                c_sel, c_acc = st.columns([2, 2])
+                with c_sel:
+                    contacto_sel = st.selectbox("Seleccione un contacto guardado:", df_crm['Nombre'].unique())
+                    datos_contacto = df_crm[df_crm['Nombre'] == contacto_sel].iloc[0]
+                    num_correo = str(datos_contacto['Contacto']).strip()
+                    st.info(f"**Vía de contacto registrada:** {num_correo}")
+                
+                with c_acc:
+                    st.write("Acciones de Comunicación:")
+                    msg_pred = f"Hola {contacto_sel}, te contactamos de la gerencia de Tenis Rey."
+                    
+                    # Extraer solo números para validación de WhatsApp
+                    num_limpio = ''.join(filter(str.isdigit, num_correo))
+                    
+                    col_wa, col_em = st.columns(2)
+                    
+                    # Botón dinámico de WhatsApp
+                    if num_limpio and len(num_limpio) >= 10:
+                        link_wa = f"https://wa.me/{num_limpio}?text={msg_pred.replace(' ', '%20')}"
+                        col_wa.link_button("🟢 Enviar WhatsApp", link_wa, use_container_width=True)
+                    else:
+                        col_wa.button("🟢 Enviar WhatsApp", disabled=True, help="Requiere un número de 10 dígitos", use_container_width=True)
+                        
+                    # Botón dinámico de Correo Electrónico
+                    if "@" in num_correo and "." in num_correo:
+                        link_mail = f"mailto:{num_correo}?subject=Seguimiento%20Tenis%20Rey&body={msg_pred.replace(' ', '%20')}"
+                        col_em.link_button("📧 Enviar Correo", link_mail, use_container_width=True)
+                    else:
+                        col_em.button("📧 Enviar Correo", disabled=True, help="Requiere un formato de correo válido (@)", use_container_width=True)
+            else:
+                st.info("Guarde un contacto en la libreta superior para habilitar el envío rápido de mensajes.")
