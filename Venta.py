@@ -6,6 +6,9 @@ import random
 import uuid
 import hashlib
 import re
+import smtplib 
+from email.mime.text import MIMEText 
+from email.mime.multipart import MIMEMultipart 
 from datetime import datetime, timedelta
 
 # ==========================================
@@ -13,31 +16,45 @@ from datetime import datetime, timedelta
 # ==========================================
 st.set_page_config(page_title="Tenis Rey | Sport", page_icon="👟", layout="wide")
 
+# CSS: Diseño responsivo, limpio y profesional
 st.markdown("""
     <style>
+    /* FUENTE CORPORATIVA */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+
+    /* TÍTULOS */
     h1, h2, h3 { color: #B71C1C !important; font-weight: 700 !important; letter-spacing: -0.5px; }
+
+    /* TARJETAS DE MÉTRICAS (KPIs) */
     div[data-testid="stMetric"] { background-color: var(--secondary-background-color); border: 1px solid rgba(128, 128, 128, 0.2); border-left: 4px solid #B71C1C; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     div[data-testid="stMetricLabel"] { color: var(--text-color) !important; opacity: 0.8; font-weight: 600; }
     div[data-testid="stMetricValue"] { color: var(--text-color) !important; font-weight: 700; }
+
+    /* INPUTS Y SELECTBOXES */
     .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div, .stTextArea textarea { background-color: var(--secondary-background-color) !important; color: var(--text-color) !important; border: 1px solid rgba(128, 128, 128, 0.3) !important; border-radius: 6px !important; }
     .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus { border-color: #B71C1C !important; box-shadow: 0 0 0 1px #B71C1C !important; }
     div[data-baseweb="select"] span { color: var(--text-color) !important; }
+
+    /* BOTONES PRIMARIOS */
     div.stButton > button { width: 100%; background-color: #B71C1C; color: #ffffff !important; font-weight: 600; border: 1px solid #B71C1C; border-radius: 6px; transition: all 0.2s ease; }
     div.stButton > button:hover { background-color: #D32F2F; border-color: #D32F2F; color: #ffffff !important; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(183, 28, 28, 0.2); }
+
+    /* LOGIN CARD */
     .login-card { background-color: var(--secondary-background-color); padding: 2.5rem; border-radius: 12px; border: 1px solid rgba(183, 28, 28, 0.2); box-shadow: 0 8px 24px rgba(0,0,0,0.05); text-align: center; }
+    
+    /* PESTAÑAS */
     .stTabs [data-baseweb="tab-list"] { border-bottom: 1px solid rgba(128,128,128,0.2); }
     .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] { background-color: rgba(183, 28, 28, 0.05); border-bottom: 3px solid #B71C1C; color: #B71C1C !important; font-weight: 600; }
     </style>
 """, unsafe_allow_html=True)
 
-# Archivos de datos
 ARCHIVO_INVENTARIO = 'tr_inventario.csv'
 ARCHIVO_HISTORIAL = 'tr_historial.csv'
 ARCHIVO_PEDIDOS = 'tr_pedidos.csv'
-ARCHIVO_USUARIOS = 'tr_usuarios.csv'
-ARCHIVO_CRM = 'tr_crm.csv'
+ARCHIVO_USUARIOS = 'tr_usuarios.csv' 
+ARCHIVO_CONFIG_API = 'tr_config_apis.csv'
+ARCHIVO_CRM = 'tr_crm.csv' # Archivo Nuevo para CRM
 
 # ==========================================
 # 2. SEGURIDAD Y DATOS
@@ -46,8 +63,7 @@ def hash_password(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
 def sanitizar_texto(texto):
-    if isinstance(texto, str):
-        return re.sub(r'[;,\n\r]', ' ', texto).strip()
+    if isinstance(texto, str): return re.sub(r'[;,\n\r]', ' ', texto).strip()
     return texto
 
 def cargar_usuarios():
@@ -74,6 +90,20 @@ if 'sesion_iniciada' not in st.session_state:
     st.session_state.nombre_usuario = None
     st.session_state.usuario_id = None
     st.session_state.ultimo_ticket = ""
+    if 'contador_soporte' not in st.session_state: st.session_state.contador_soporte = 0
+
+def enviar_correo_soporte(mensaje):
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login("alanbdb64@gmail.com", "dxah wqco wygs bjgk".replace(" ", ""))
+        msg = MIMEMultipart()
+        msg['Subject'] = f"🚨 Alerta de Sistema (Tenis Rey) - {datetime.now().strftime('%H:%M')}"
+        msg.attach(MIMEText(f"Usuario reporta: {st.session_state.nombre_usuario}\n\nDetalle de la incidencia:\n{mensaje}", 'plain'))
+        server.sendmail("alanbdb64@gmail.com", "alanbdb64@gmail.com", msg.as_string())
+        server.quit()
+        return True
+    except: return False
 
 @st.cache_data(show_spinner=False)
 def cargar_csv(archivo, columnas):
@@ -82,18 +112,21 @@ def cargar_csv(archivo, columnas):
         df = pd.read_csv(archivo)
         if df.empty: return pd.DataFrame(columns=columnas)
         for col in columnas:
-            if col not in df.columns: 
-                df[col] = 0.0 if any(x in col for x in ["Precio", "Costo", "Cantidad", "Minimo"]) else ""
+            if col not in df.columns: df[col] = 0.0 if "Precio" in col or "Costo" in col or "Cantidad" in col or "Minimo" in col else ""
         return df
     except: return pd.DataFrame(columns=columnas)
 
 def cargar_inventario():
-    cols = ['SKU', 'Categoria', 'Genero', 'Modelo', 'Talla', 'Tipo', 'Cantidad', 'Stock_Minimo', 'Costo_Unitario', 'Precio_Venta', 'Proveedor']
+    # SE AGREGÓ: Talla y Genero sin borrar nada tuyo
+    cols = ['SKU', 'Categoria', 'Genero', 'Modelo', 'Talla', 'Tipo', 'Cantidad', 'Stock_Minimo', 'Costo_Unitario', 'Precio_Venta', 'Proveedor', 'Precio_ML', 'Precio_Amazon']
     df = cargar_csv(ARCHIVO_INVENTARIO, cols)
     if df.empty:
+        # Catálogo por defecto actualizado
         datos = [
-            {'SKU': 'NK-AJ1-RED-27', 'Categoria': 'Calzado', 'Genero': 'Hombre', 'Modelo': 'Nike Air Jordan 1 Rojo', 'Talla': '27', 'Tipo': 'Mayorista', 'Cantidad': 12, 'Stock_Minimo': 3, 'Costo_Unitario': 1200.0, 'Precio_Venta': 2500.0, 'Proveedor': 'Dist Nacional'},
-            {'SKU': 'AD-ULB-BLK-26', 'Categoria': 'Calzado', 'Genero': 'Mujer', 'Modelo': 'Adidas Ultraboost Negro', 'Talla': '26', 'Tipo': 'Mayorista', 'Cantidad': 8, 'Stock_Minimo': 2, 'Costo_Unitario': 1500.0, 'Precio_Venta': 3200.0, 'Proveedor': 'Directa'}
+            {'SKU': 'NK-AJ1-RED-27', 'Categoria': 'Calzado', 'Genero': 'Hombre', 'Modelo': 'Nike Air Jordan 1 Rojo', 'Talla': '27', 'Tipo': 'Mayorista', 'Cantidad': 12, 'Stock_Minimo': 3, 'Costo_Unitario': 1200.0, 'Precio_Venta': 2500.0, 'Proveedor': 'Distribuidor Nacional', 'Precio_ML': 2800.0, 'Precio_Amazon': 2750.0},
+            {'SKU': 'AD-ULB-BLK-26', 'Categoria': 'Calzado', 'Genero': 'Mujer', 'Modelo': 'Adidas Ultraboost Negro', 'Talla': '26', 'Tipo': 'Mayorista', 'Cantidad': 8, 'Stock_Minimo': 2, 'Costo_Unitario': 1500.0, 'Precio_Venta': 3200.0, 'Proveedor': 'Importación Directa', 'Precio_ML': 3500.0, 'Precio_Amazon': 3400.0},
+            {'SKU': 'PM-TSH-WHT-M', 'Categoria': 'Ropa', 'Genero': 'Unisex', 'Modelo': 'Playera Deportiva Puma Blanca', 'Talla': 'M', 'Tipo': 'Nacional', 'Cantidad': 25, 'Stock_Minimo': 5, 'Costo_Unitario': 250.0, 'Precio_Venta': 500.0, 'Proveedor': 'Textiles MX', 'Precio_ML': 600.0, 'Precio_Amazon': 550.0},
+            {'SKU': 'NK-SOX-3PK', 'Categoria': 'Accesorios', 'Genero': 'Unisex', 'Modelo': 'Calcetas Nike Dri-FIT (Pack 3)', 'Talla': 'Única', 'Tipo': 'Nacional', 'Cantidad': 40, 'Stock_Minimo': 10, 'Costo_Unitario': 150.0, 'Precio_Venta': 350.0, 'Proveedor': 'Distribuidor Nacional', 'Precio_ML': 450.0, 'Precio_Amazon': 400.0}
         ]
         df = pd.DataFrame(datos)
         df.to_csv(ARCHIVO_INVENTARIO, index=False)
@@ -101,6 +134,11 @@ def cargar_inventario():
 
 def guardar_df(df, archivo):
     try:
+        if not os.path.exists("respaldos"): os.makedirs("respaldos")
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if os.path.exists(archivo):
+            try: pd.read_csv(archivo).to_csv(f"respaldos/{os.path.basename(archivo).split('.')[0]}_{ts}.csv", index=False)
+            except: pass
         df.to_csv(archivo, index=False)
         st.cache_data.clear()
     except: pass
@@ -112,135 +150,256 @@ def registrar_historial(accion, sku, modelo, cant, precio=0, costo=0, notas="", 
         'Monto_Venta': float(precio)*int(cant) if "VENTA" in accion else 0,
         'Costo_Venta': float(costo)*int(cant) if "VENTA" in accion else 0,
         'Monto_Gasto': float(costo)*int(cant) if "ALTA" in accion or "ENTRADA" in accion else 0,
-        'Notas': notas, 'Metodo_Pago': metodo_pago
+        'Notas': notas, 'Metodo_Pago': metodo_pago # SE AGREGÓ: Método de Pago
     }
     df_h = pd.DataFrame([nuevo])
-    df_h.to_csv(ARCHIVO_HISTORIAL, mode='a', header=not os.path.exists(ARCHIVO_HISTORIAL), index=False)
-    st.cache_data.clear()
+    try: df_h.to_csv(ARCHIVO_HISTORIAL, mode='a', header=not os.path.exists(ARCHIVO_HISTORIAL), index=False); st.cache_data.clear()
+    except: pass
 
-def generar_ticket(sku, modelo, cant, total, user, metodo):
+def generar_ticket(sku, modelo, cant, total, user, metodo_pago="Efectivo"):
     return f"""
 ========================================
          TENIS REY - SUCURSAL
 ========================================
  Fecha:   {datetime.now().strftime("%d/%m/%Y %H:%M")}
  Cajero:  {user}
- Método:  {metodo}
+ Pago:    {metodo_pago}
 ----------------------------------------
  CANT | DESCRIPCION            | IMPORTE
 ----------------------------------------
  {str(cant).center(4)} | {modelo[:19]:<19} | ${total:,.2f}
+ 
  SKU: {sku}
 ----------------------------------------
            TOTAL A PAGAR: ${total:,.2f}
 ========================================
          ¡GRACIAS POR SU COMPRA!
+      Conserve su ticket para 
+        cualquier aclaración.
 ========================================
     """
 
-def calc_stats():
-    if not os.path.exists(ARCHIVO_HISTORIAL): return pd.DataFrame()
-    try: 
-        df = pd.read_csv(ARCHIVO_HISTORIAL)
-        df['Fecha_Dt'] = pd.to_datetime(df['Fecha'])
-        if 'Monto_Gasto' not in df.columns: df['Monto_Gasto'] = 0.0
-        if 'Metodo_Pago' not in df.columns: df['Metodo_Pago'] = "Efectivo"
-        return df
-    except: return pd.DataFrame()
-
-def sincronizar_ecommerce(df_inv):
-    """Simula la conexión con una API externa (Mercado Libre / Amazon) para traer pedidos nuevos"""
-    nuevos_pedidos = []
-    time.sleep(1) # Simula retraso de red
-    stock_disponible = df_inv[df_inv['Cantidad'] > 0]
-    
-    if not stock_disponible.empty and random.random() > 0.3: # 70% de probabilidad de encontrar nuevos pedidos
-        num_pedidos = random.randint(1, 3)
-        for _ in range(num_pedidos):
-            p = stock_disponible.sample(1).iloc[0]
+def sincronizar(df_inv):
+    nuevos = []
+    time.sleep(1) # Simulación de conexión API
+    if not df_inv.empty and random.random() > 0.6:
+        stock = df_inv[df_inv['Cantidad'] > 0]
+        if not stock.empty:
+            p = stock.sample(1).iloc[0]
             if p['Cantidad'] > 0:
-                plataforma = random.choice(['Mercado Libre', 'Amazon', 'Tienda Nube'])
-                nuevos_pedidos.append({'Plataforma': plataforma, 'SKU': p['SKU'], 'Modelo': p['Modelo'], 'Cantidad': 1})
-    return nuevos_pedidos
+                nuevos.append({'Plataforma': 'Mercado Libre', 'SKU': p['SKU'], 'Modelo': p['Modelo'], 'Cantidad': 1})
+    return nuevos
+
+def calc_stats():
+    if not os.path.exists(ARCHIVO_HISTORIAL): return None, None, pd.DataFrame()
+    try: df = pd.read_csv(ARCHIVO_HISTORIAL); df['Fecha_Dt'] = pd.to_datetime(df['Fecha'])
+    except: return None, None, pd.DataFrame()
+    if 'Monto_Gasto' not in df.columns: df['Monto_Gasto'] = 0.0
+    if 'Metodo_Pago' not in df.columns: df['Metodo_Pago'] = "Efectivo" # Compatibilidad
+    return df, None, df
 
 # ==========================================
 # 4. INTERFAZ
 # ==========================================
+
 if not st.session_state.sesion_iniciada:
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
-        st.markdown("<br><div class='login-card'><h1 style='margin-bottom: 0;'>👟 TENIS REY</h1><p style='opacity: 0.8; color: #B71C1C;'>Sport & Punto de Venta</p></div><br>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("""
+            <div class="login-card">
+                <h1 style='text-align: center; margin-bottom: 0;'>👟 TENIS REY</h1>
+                <p style='text-align: center; opacity: 0.8; font-weight: 600; color: #B71C1C;'>Sport & Punto de Venta</p>
+                <hr style='border-color: rgba(183, 28, 28, 0.2);'>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
         with st.form("login"):
-            u = st.text_input("Usuario")
-            p = st.text_input("Contraseña", type="password")
+            u = st.text_input("Identificador de Usuario", placeholder="Ingrese su usuario")
+            p = st.text_input("Contraseña", type="password", placeholder="••••••••")
             if st.form_submit_button("INICIAR SESIÓN"):
                 val = verificar_login(u, p)
                 if val is not None:
                     st.session_state.sesion_iniciada = True
                     st.session_state.rol_usuario = val['Rol']
                     st.session_state.nombre_usuario = val['Nombre']
+                    st.session_state.usuario_id = val['Usuario']
                     st.rerun()
-                else: st.error("Credenciales incorrectas.")
+                else: st.error("Autenticación fallida. Verifique sus credenciales.")
 
 else:
     df_inv = cargar_inventario()
     df_ped = cargar_csv(ARCHIVO_PEDIDOS, ['ID_Pedido','Fecha','SKU','Modelo','Cantidad','Plataforma','Estado'])
+    
+    # Pre-cargamos tus datos en el CRM si está vacío para probar el Action Center
     df_crm = cargar_csv(ARCHIVO_CRM, ['Tipo', 'Nombre', 'Contacto', 'Mensaje_Nota', 'Fecha'])
+    if df_crm.empty:
+        df_crm = pd.DataFrame([{'Tipo': 'Proveedor', 'Nombre': 'Alan (Soporte Técnico)', 'Contacto': '6676562718 / alanbdb64@gmail.com', 'Mensaje_Nota': 'Contacto principal del sistema.', 'Fecha': datetime.now().strftime("%Y-%m-%d")}])
+        guardar_df(df_crm, ARCHIVO_CRM)
     
     # --- BARRA LATERAL ---
     with st.sidebar:
-        st.write(f"👤 **{st.session_state.nombre_usuario}** ({st.session_state.rol_usuario})")
-        if st.button("🔄 Refrescar Pantalla"): st.cache_data.clear(); st.rerun()
+        st.markdown(f"#### Panel de Usuario")
+        st.write(f"👤 **{st.session_state.nombre_usuario}**")
+        st.caption(f"Perfil: {st.session_state.rol_usuario}")
+        
+        if st.button("🔄 Refrescar Sistema", help="Actualiza los datos en pantalla"):
+            st.cache_data.clear()
+            st.rerun()
+            
         st.divider()
         
-        with st.expander("💵 Arqueo de Caja (Por Separado)", expanded=True):
-            df_full = calc_stats()
-            if not df_full.empty:
+        with st.expander("📊 Simulador de Rentabilidad"):
+            c = st.number_input("Costo Unitario ($)", 0.0, step=10.0)
+            e = st.number_input("Gastos Logísticos ($)", 0.0, step=10.0)
+            v = st.number_input("Precio de Venta ($)", 0.0, step=10.0)
+            if st.button("Calcular Utilidad"):
+                gan = v - (c + e) - (v * 0.15) # 15% estimación de comisión
+                if gan > 0: st.success(f"Utilidad Proyectada: ${gan:,.2f}")
+                else: st.error(f"Pérdida Proyectada: ${gan:,.2f}")
+
+        # MEJORA: Arqueo de caja desglosado pero manteniendo tu calculadora de diferencia
+        with st.expander("💵 Arqueo de Caja"):
+            raw, _, df_full = calc_stats()
+            esperado = 0.0
+            if df_full is not None and not df_full.empty:
                 hoy = datetime.now().date()
-                ventas_hoy = df_full[(df_full['Fecha_Dt'].dt.date == hoy) & (df_full['Accion'].str.contains('VENTA'))]
+                mask = (df_full['Fecha_Dt'].dt.date == hoy) & (df_full['Accion'].str.contains('VENTA')) & (df_full['Usuario'] == st.session_state.nombre_usuario)
+                ventas_hoy = df_full[mask]
+                
                 efectivo = ventas_hoy[ventas_hoy['Metodo_Pago'] == 'Efectivo']['Monto_Venta'].sum()
                 tarjeta = ventas_hoy[ventas_hoy['Metodo_Pago'] == 'Tarjeta']['Monto_Venta'].sum()
                 transf = ventas_hoy[ventas_hoy['Metodo_Pago'] == 'Transferencia']['Monto_Venta'].sum()
+                esperado = efectivo # La caja física solo debe cuadrar el efectivo
                 
-                st.write(f"💵 Efectivo: **${efectivo:,.2f}**")
-                st.write(f"💳 Tarjeta: **${tarjeta:,.2f}**")
-                st.write(f"🏦 Transferencia: **${transf:,.2f}**")
-                st.markdown(f"**Total General: ${efectivo+tarjeta+transf:,.2f}**")
-            else: st.write("Sin ventas registradas hoy.")
+                st.write(f"💵 Efectivo en Sistema: **${efectivo:,.2f}**")
+                st.write(f"💳 Tarjetas: ${tarjeta:,.2f}")
+                st.write(f"🏦 Transferencias: ${transf:,.2f}")
+                st.markdown(f"**Total General Registrado:** ${(efectivo+tarjeta+transf):,.2f}")
+            else:
+                st.write("Sin ventas hoy.")
+
+            real = st.number_input("Efectivo Físico en Caja:", 0.0)
+            if st.button("Realizar Arqueo"):
+                diff = real - esperado
+                if diff == 0: st.success("✅ Cuadre de caja correcto.")
+                else: st.warning(f"Diferencia en EFECTIVO detectada: ${diff:,.2f}")
+
+        if st.session_state.rol_usuario == "Administrador":
+            with st.expander("🔌 Integración E-commerce"):
+                ml_token_env = os.environ.get("ML_TOKEN", "")
+                st.text_input("API Key Mercado Libre", value=ml_token_env, type="password")
+                st.text_input("API Key Amazon Seller", type="password")
+
+        st.markdown("---")
+        if st.button("📥 Sincronizar Órdenes (B2C)"):
+            with st.spinner("Conectando con plataformas..."):
+                news = sincronizar(df_inv)
+                if news:
+                    for n in news:
+                        idx = df_inv[df_inv['SKU']==n['SKU']].index[0]
+                        df_inv.at[idx, 'Cantidad'] -= n['Cantidad']
+                        reg = {'ID_Pedido':f"ORD-{int(time.time())}", 'Fecha':datetime.now().strftime("%Y-%m-%d"), 'SKU':n['SKU'], 'Modelo':n['Modelo'], 'Cantidad':n['Cantidad'], 'Plataforma':n['Plataforma'], 'Estado':'Pendiente'}
+                        df_ped = pd.concat([df_ped, pd.DataFrame([reg])], ignore_index=True)
+                        registrar_historial("VENTA_AUTO", n['SKU'], n['Modelo'], n['Cantidad'], 0, 0, "Orden B2C Generada", "Transferencia")
+                    guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                    guardar_df(df_ped, ARCHIVO_PEDIDOS)
+                    st.success(f"Se procesaron {len(news)} órdenes nuevas.")
+                    time.sleep(1)
+                    st.rerun()
+                else: st.info("Inventario y órdenes sincronizadas. Sin novedades.")
+
+        with st.expander("🛠️ Reportar Incidencia", expanded=False):
+            key_din = f"txt_soporte_{st.session_state.contador_soporte}"
+            msg_err = st.text_area("Describa el error del sistema:", key=key_din)
+            if st.button("Enviar Ticket de Soporte"):
+                if msg_err and enviar_correo_soporte(msg_err):
+                    st.success("Ticket enviado al administrador.")
+                    st.session_state.contador_soporte += 1
+                    time.sleep(1)
+                    st.rerun()
 
         if st.button("Cerrar Sesión"):
-            st.session_state.sesion_iniciada = False; st.rerun()
+            st.session_state.sesion_iniciada = False
+            st.rerun()
 
-    # --- ÁREA PRINCIPAL ---
-    st.markdown("<h2>👟 Panel de Control</h2>", unsafe_allow_html=True)
-    
-    tabs = st.tabs(["🛒 TPV (Ventas)", "👟 INVENTARIO", "📦 ÓRDENES (E-commerce)", "📝 CATÁLOGO", "📈 REPORTES & BONOS", "📞 MENSAJES (CRM)"]) if st.session_state.rol_usuario == "Administrador" else st.tabs(["🛒 TPV (Ventas)", "👟 INVENTARIO", "📦 ÓRDENES (E-commerce)"])
-    
-    t_pos = tabs[0]
-    t_inv = tabs[1]
-    t_ped = tabs[2]
-    t_adm = tabs[3] if len(tabs) > 3 else None
-    t_rep = tabs[4] if len(tabs) > 3 else None
-    t_crm = tabs[5] if len(tabs) > 3 else None
+        if st.session_state.rol_usuario == "Administrador":
+            with st.expander("⚠️ Mantenimiento de Base de Datos", expanded=False):
+                if st.button("Purgar Historial de Transacciones"):
+                    if os.path.exists(ARCHIVO_HISTORIAL): os.remove(ARCHIVO_HISTORIAL)
+                    if os.path.exists(ARCHIVO_PEDIDOS): os.remove(ARCHIVO_PEDIDOS)
+                    st.cache_data.clear()
+                    st.rerun()
 
-    # 1. TPV (VENTAS Y COBROS + CÓDIGOS DE BARRAS)
+    # --- ÁREA DE TRABAJO PRINCIPAL ---
+    st.markdown("<h2 style='margin-bottom: 0;'>👟 Panel de Control - Tenis Rey Sport</h2>", unsafe_allow_html=True)
+    
+    # CÁLCULO DE KPIs INTÁCTO
+    pend = df_ped[df_ped['Estado']=='Pendiente'].shape[0]
+    low = df_inv[df_inv['Cantidad'] <= df_inv['Stock_Minimo']].shape[0]
+    valor_inventario = (df_inv['Cantidad'] * df_inv['Costo_Unitario']).sum() if not df_inv.empty else 0.0
+    
+    raw, _, df_full = calc_stats()
+    vhoy = 0
+    if df_full is not None and not df_full.empty:
+        vhoy = df_full[(df_full['Fecha_Dt'].dt.date == datetime.now().date()) & (df_full['Accion'].str.contains('VENTA'))]['Monto_Venta'].sum()
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Ingresos Diarios", f"${vhoy:,.2f}")
+    k2.metric("Órdenes Pendientes", pend, delta_color="inverse" if pend>0 else "normal")
+    k3.metric("Alertas de Stock", low, delta_color="inverse")
+    k4.metric("Valor del Inventario", f"${valor_inventario:,.2f}")
+
+    st.divider()
+
+    # PESTAÑAS DE NAVEGACIÓN (Se agrega CRM al final)
+    tabs = st.tabs(["📦 ÓRDENES E-COMMERCE", "🛒 Vender o Salida de Mercancía", "👟 INVENTARIO", "📝 INGRESAR O EDITAR CATÁLOGO", "📊 REPORTES", "📞 CRM & MENSAJES"]) if st.session_state.rol_usuario == "Administrador" else st.tabs(["📦 ÓRDENES", "🛒 TPV", "👟 INVENTARIO", "📞 CRM & MENSAJES"])
+    t_ped, t_pos, t_inv = tabs[0], tabs[1], tabs[2]
+    
+    if st.session_state.rol_usuario == "Administrador":
+        t_adm, t_rep, t_crm = tabs[3], tabs[4], tabs[5]
+    else:
+        t_adm, t_rep, t_crm = None, None, tabs[3]
+
+    # 1. ÓRDENES
+    with t_ped:
+        p = df_ped[df_ped['Estado']=='Pendiente']
+        if p.empty: st.success("No hay órdenes pendientes de despacho.")
+        else:
+            for i, r in p.iterrows():
+                with st.container():
+                    c1, c2, c3, c4 = st.columns([0.5, 3, 2, 1.5])
+                    icon = "👕" if "Ropa" in r['Modelo'] or "Playera" in r['Modelo'] else "👟"
+                    c1.markdown(f"<h4>{icon}</h4>", unsafe_allow_html=True)
+                    c2.markdown(f"**{r['Modelo']}**")
+                    c2.caption(f"SKU: {r['SKU']} | Unidades: **{r['Cantidad']}**")
+                    c3.write(f"Ref. Externa: {r['ID_Pedido']}")
+                    if c4.button("Confirmar Despacho", key=r['ID_Pedido']):
+                        df_ped.loc[df_ped['ID_Pedido']==r['ID_Pedido'], 'Estado']='Enviado'
+                        guardar_df(df_ped, ARCHIVO_PEDIDOS)
+                        st.rerun()
+                    st.divider()
+
+    # 2. TPV (PUNTO DE VENTA)
     with t_pos:
         c1, c2 = st.columns([2, 1])
         with c1:
-            st.markdown("#### Registro de Venta (Soporta Código de Barras)")
-            scan = st.text_input("Escanee o escriba el SKU/Modelo:", placeholder="Pistola láser o teclado...")
+            st.markdown("#### Registro de Venta Deportiva")
+            scan = st.text_input("Búsqueda de Artículo:", placeholder="Ingrese SKU o descripción (Tenis, Ropa, etc)...", label_visibility="collapsed")
             sel = None
             if scan:
                 scan = sanitizar_texto(scan)
-                f = df_inv[df_inv['SKU'].astype(str).str.upper() == scan.upper()]
+                f = df_inv[df_inv['SKU'].astype(str) == scan]
                 if not f.empty: sel = f.iloc[0]
                 else: 
                     fn = df_inv[df_inv['Modelo'].str.contains(scan, case=False)]
                     if not fn.empty: sel = fn.iloc[0]
             
             if sel is None and not df_inv.empty:
-                op = df_inv[df_inv['Cantidad']>0].apply(lambda x: f"{x['Modelo']} (Talla: {x['Talla']}) | {x['SKU']}", axis=1)
-                s = st.selectbox("O selección manual:", op, index=None, placeholder="Buscar en lista...")
+                # Se incorpora Talla en la visualización
+                op = df_inv[df_inv['Cantidad']>0].apply(lambda x: f"{x['Modelo']} (Talla: {x.get('Talla','')}) | {x['SKU']}", axis=1)
+                s = st.selectbox("Selección desde Catálogo:", op, index=None, placeholder="Elija un producto...", label_visibility="collapsed")
                 if s: sel = df_inv[df_inv['SKU'] == s.split(" | ")[1]].iloc[0]
             
             if sel is not None:
@@ -248,218 +407,265 @@ else:
                 stock = int(df_inv.at[idx, 'Cantidad'])
                 stock_min = int(df_inv.at[idx, 'Stock_Minimo'])
                 
-                if stock > stock_min:
-                    st.success(f"**{sel['Modelo']}** | Género: {sel['Genero']} | Talla: {sel['Talla']} | Stock Físico: {stock}")
+                # MEJORA: Alerta de Stock
+                if stock <= stock_min:
+                    st.warning(f"⚠️ **{sel['Modelo']}** | Inventario Físico: {stock} unidades (¡Nivel Bajo!)")
                 else:
-                    st.warning(f"⚠️ **{sel['Modelo']}** | Género: {sel['Genero']} | Talla: {sel['Talla']} | Stock Físico: {stock} (¡Nivel Bajo de Inventario!)")
+                    st.info(f"**{sel['Modelo']}** | Inventario Físico: {stock} unidades")
                 
                 if stock > 0:
-                    cq, cp, cm = st.columns(3)
-                    q = cq.number_input("Cantidad", 1, stock, 1)
-                    metodo = cm.selectbox("Método Cobro", ["Efectivo", "Tarjeta", "Transferencia"])
+                    cq, cm, cp = st.columns(3)
+                    q = cq.number_input("Cantidad a vender", 1, stock, 1)
+                    metodo = cm.selectbox("Método de Pago", ["Efectivo", "Tarjeta", "Transferencia"])
                     tot = sel['Precio_Venta'] * q
-                    cp.metric("Cobro Total", f"${tot:,.2f}")
+                    cp.metric("Importe a Cobrar", f"${tot:,.2f}")
                     
-                    if st.button("Cobrar Transacción", type="primary", use_container_width=True):
-                        df_inv.at[idx, 'Cantidad'] -= q
-                        guardar_df(df_inv, ARCHIVO_INVENTARIO)
-                        registrar_historial("VENTA_TPV", sel['SKU'], sel['Modelo'], q, sel['Precio_Venta'], sel['Costo_Unitario'], "Mostrador", metodo)
-                        st.session_state.ultimo_ticket = generar_ticket(sel['SKU'], sel['Modelo'], q, tot, st.session_state.nombre_usuario, metodo)
-                        st.success("Cobro exitoso. Registrado en Arqueo.")
-                        time.sleep(0.5)
-                        st.rerun()
-                else: st.error("Agotado.")
+                    if st.button("PROCESAR TRANSACCIÓN", type="primary", use_container_width=True):
+                        if q > stock:
+                            st.error("Operación denegada: Inventario insuficiente.")
+                        else:
+                            df_inv.at[idx, 'Cantidad'] -= q
+                            guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                            registrar_historial("VENTA", sel['SKU'], sel['Modelo'], q, sel['Precio_Venta'], sel['Costo_Unitario'], "Venta Directa TPV", metodo)
+                            st.session_state.ultimo_ticket = generar_ticket(sel['SKU'], sel['Modelo'], q, tot, st.session_state.nombre_usuario, metodo)
+                            st.success("Transacción registrada correctamente.")
+                            time.sleep(0.5)
+                            st.rerun()
+                else:
+                    st.error("El artículo seleccionado se encuentra agotado.")
+                    st.button("PROCESAR TRANSACCIÓN", disabled=True, key="btn_agotado")
 
         with c2:
-            st.info("Último Ticket")
-            if st.session_state.ultimo_ticket: st.code(st.session_state.ultimo_ticket, language="text")
+            st.info("Comprobante de Transacción")
+            if st.session_state.ultimo_ticket:
+                st.code(st.session_state.ultimo_ticket, language="text")
 
-    # 2. INVENTARIO & REDES SOCIALES
+    # 3. INVENTARIO
     with t_inv:
-        c1, c2 = st.columns([3,1])
-        c1.markdown("#### Base de Datos")
-        ver_bajo = c2.checkbox("Solo bajo stock")
-        df_show = df_inv[df_inv['Cantidad'] <= df_inv['Stock_Minimo']] if ver_bajo else df_inv.copy()
+        st.markdown("#### Base de Datos de Artículos")
+        ver_bajo = st.checkbox("Mostrar únicamente artículos con alerta de stock") 
         
-        st.dataframe(df_show[['SKU', 'Categoria', 'Genero', 'Modelo', 'Talla', 'Cantidad', 'Precio_Venta']], use_container_width=True)
+        df_show = df_inv.copy()
+        if ver_bajo:
+            df_show = df_show[df_show['Cantidad'] <= df_show['Stock_Minimo']]
+            
+        st.dataframe(
+            # Se agrega Genero y Talla a la vista sin romper tus formatos
+            df_show[['SKU', 'Categoria', 'Genero', 'Modelo', 'Talla', 'Cantidad', 'Costo_Unitario', 'Precio_Venta']], 
+            use_container_width=True,
+            column_config={
+                "Cantidad": st.column_config.ProgressColumn("Unidades Disponibles", format="%d", min_value=0, max_value=int(df_inv['Cantidad'].max() if not df_inv.empty else 100)),
+                "Costo_Unitario": st.column_config.NumberColumn("Costo Base", format="$%.2f"),
+                "Precio_Venta": st.column_config.NumberColumn("Precio Público", format="$%.2f")
+            }
+        )
         
         csv_inv = df_show.to_csv(index=False).encode('utf-8')
-        st.download_button(label="📥 Exportar Inventario Actual (.csv)", data=csv_inv, file_name=f'inventario_{datetime.now().strftime("%Y%m%d")}.csv', mime='text/csv')
+        st.download_button(label="📥 Exportar Inventario (.csv)", data=csv_inv, file_name=f'inventario_{datetime.now().strftime("%Y%m%d")}.csv', mime='text/csv')
 
-        st.markdown("#### 📱 Promover por Redes")
-        s_redes = st.selectbox("Selecciona un artículo para generar post:", df_inv[df_inv['Cantidad']>0]['Modelo'].unique(), key="s_redes")
-        if s_redes:
-            r = df_inv[df_inv['Modelo']==s_redes].iloc[0]
-            txt = f"🔥 ¡NUEVO INGRESO! 🔥\n👟 {r['Modelo']}\n📏 Talla: {r['Talla']} ({r['Genero']})\n💰 A solo: ${float(r['Precio_Venta']):,.2f}\n\n📦 Entrega inmediata. ¡Mándanos DM antes de que se agoten!"
-            st.code(txt, language="text")
-            st.caption("Copia este texto para pegarlo en Facebook, Instagram o WhatsApp.")
+        st.divider()
+        c_redes, c_remate = st.columns(2)
+        with c_redes:
+            st.markdown("#### 📱 Promover por Redes")
+            s_redes = st.selectbox("Generar post para:", df_inv[df_inv['Cantidad']>0]['Modelo'].unique(), key="s_redes")
+            if s_redes:
+                r = df_inv[df_inv['Modelo']==s_redes].iloc[0]
+                talla_str = r.get('Talla', 'Única')
+                gen_str = r.get('Genero', 'Unisex')
+                txt = f"🔥 ¡NUEVO INGRESO! 🔥\n👟 {r['Modelo']}\n📏 Talla: {talla_str} ({gen_str})\n💰 A solo: ${float(r['Precio_Venta']):,.2f}\n\n📦 Entrega inmediata. ¡Mándanos DM!"
+                st.code(txt, language="text")
 
-        if st.session_state.rol_usuario == "Administrador":
-            st.markdown("#### 🚨 Remates de Mercancía Parada")
-            remates = df_inv[(df_inv['Cantidad'] >= 5)]
-            if not remates.empty:
-                st.warning("Se detectaron artículos con alto stock sugeridos para liquidación:")
-                for _, rem in remates.iterrows():
-                    st.write(f"🔻 **{rem['Modelo']}** (Stock: {rem['Cantidad']}) - Precio Actual: ${rem['Precio_Venta']} -> Sugerido: **${float(rem['Costo_Unitario'])*1.1:,.2f}**")
-            else: st.success("Inventario rotando correctamente. No hay mercancía estancada.")
+        with c_remate:
+            if st.session_state.rol_usuario == "Administrador":
+                st.markdown("#### 🚨 Alerta de Remates")
+                remates = df_inv[(df_inv['Cantidad'] >= 5)]
+                if not remates.empty:
+                    st.warning("Artículos sugeridos para liquidación (Alto Stock):")
+                    for _, rem in remates.iterrows():
+                        st.write(f"🔻 **{rem['Modelo']}** (Quedan {rem['Cantidad']}) - Sugerido: **${float(rem['Costo_Unitario'])*1.1:,.2f}**")
+                else: st.success("Inventario rotando bien. Sin estancamientos.")
 
-    # 3. ÓRDENES (E-COMMERCE)
-    with t_ped:
-        c1, c2 = st.columns([3, 1])
-        c1.markdown("#### Recepción de Pedidos B2C (Externos)")
-        
-        # Botón para vincular y sincronizar con servicios externos
-        if c2.button("🔄 Sincronizar E-commerce", help="Busca nuevos pedidos en plataformas conectadas"):
-            with st.spinner("Conectando con plataformas..."):
-                nuevos = sincronizar_ecommerce(df_inv)
-                if nuevos:
-                    for n in nuevos:
-                        idx = df_inv[df_inv['SKU']==n['SKU']].index[0]
-                        df_inv.at[idx, 'Cantidad'] -= n['Cantidad'] # Descuenta inventario automáticamente
-                        
-                        reg = {'ID_Pedido':f"EXT-{int(time.time())}-{random.randint(10,99)}", 'Fecha':datetime.now().strftime("%Y-%m-%d"), 'SKU':n['SKU'], 'Modelo':n['Modelo'], 'Cantidad':n['Cantidad'], 'Plataforma':n['Plataforma'], 'Estado':'Pendiente'}
-                        df_ped = pd.concat([df_ped, pd.DataFrame([reg])], ignore_index=True)
-                        registrar_historial("VENTA_EXTERNA", n['SKU'], n['Modelo'], n['Cantidad'], 0, 0, f"Orden automática de {n['Plataforma']}", "Transferencia")
-                    
-                    guardar_df(df_inv, ARCHIVO_INVENTARIO)
-                    guardar_df(df_ped, ARCHIVO_PEDIDOS)
-                    st.success(f"¡Éxito! Se sincronizaron {len(nuevos)} pedidos nuevos.")
-                    time.sleep(1.5)
-                    st.rerun()
-                else: st.info("Todo al día. No se encontraron pedidos nuevos en las plataformas externas.")
-
-        p = df_ped[df_ped['Estado']=='Pendiente']
-        if p.empty: 
-            st.success("No hay pedidos pendientes de despacho.")
-        else:
-            for i, r in p.iterrows():
-                cc1, cc2, cc3 = st.columns([4, 2, 2])
-                cc1.write(f"**{r['Modelo']}** (SKU: {r['SKU']}) - Cant: {r['Cantidad']}")
-                cc2.write(f"Plataforma: {r['Plataforma']} | Ref: {r['ID_Pedido']}")
-                if cc3.button("Marcar Despachado", key=r['ID_Pedido']):
-                    df_ped.loc[df_ped['ID_Pedido']==r['ID_Pedido'], 'Estado']='Enviado'
-                    guardar_df(df_ped, ARCHIVO_PEDIDOS)
-                    st.rerun()
-
-    # 4. ADMINISTRACIÓN DE CATÁLOGO (Subir Mercancía)
+    # 4. ADMINISTRACIÓN DE CATÁLOGO
     if t_adm:
         with t_adm:
-            st.markdown("#### Ingresar / Editar Mercancía (Modelos, Números, Géneros)")
-            with st.form("form_cat", clear_on_submit=True):
-                c1, c2, c3 = st.columns([1,2,1])
-                f_sku = c1.text_input("Código de Barras/SKU")
-                f_mod = c2.text_input("Nombre del Modelo")
-                f_cat = c3.selectbox("Categoría", ["Calzado", "Ropa", "Accesorios"])
-                
-                c4, c5, c6 = st.columns(3)
-                f_talla = c4.text_input("Número / Talla (Ej. 27, M, Única)")
-                f_gen = c5.selectbox("Género", ["Hombre", "Mujer", "Unisex", "Niños"])
-                f_qty = c6.number_input("Cantidad Física", min_value=0, value=1)
-                
-                c7, c8, c9 = st.columns(3)
-                f_cos = c7.number_input("Costo", min_value=0.0)
-                f_pv = c8.number_input("Precio Venta", min_value=0.0)
-                f_min = c9.number_input("Stock Mínimo", min_value=1, value=2)
+            st.markdown("#### Gestión Profesional de Inventario")
+            act = st.radio("Tipo de Operación", ["Registro Nuevo", "Duplicar Registro", "Modificar Datos", "Ajuste de Existencias"], horizontal=True)
+            d_sku, d_mod, d_qty, d_min, d_cost, d_pv = "", "", 1, 2, 0.0, 0.0
+            d_cat, d_link, d_ml, d_amz = "Calzado", "", 0.0, 0.0 
+            d_talla, d_gen = "", "Unisex" # MEJORA: Valores por defecto
+            idx_e = -1
+            
+            if act != "Registro Nuevo" and not df_inv.empty:
+                s_ed = st.selectbox("Seleccione el artículo a operar:", df_inv['Modelo'].unique())
+                idx_e = df_inv[df_inv['Modelo']==s_ed].index[0]
+                r = df_inv.iloc[idx_e]
+                d_sku = "" if act=="Duplicar Registro" else r['SKU']
+                d_mod = r['Modelo'] + (" (Copia)" if act=="Duplicar Registro" else "")
+                d_cat, d_qty = r['Categoria'], int(r['Cantidad'])
+                d_min = int(r['Stock_Minimo'])
+                d_cost = float(r['Costo_Unitario'])
+                d_pv = float(r['Precio_Venta'])
+                d_link, d_ml, d_amz = r['Proveedor'], float(r['Precio_ML']), float(r['Precio_Amazon'])
+                d_talla = r.get('Talla', '')
+                d_gen = r.get('Genero', 'Unisex')
 
-                if st.form_submit_button("Subir Mercancía"):
-                    if not f_mod or not f_sku or not f_talla: st.error("Llene SKU, Modelo y Talla obligatoriamente.")
+            with st.form("adm", clear_on_submit=(act=="Registro Nuevo")):
+                st.markdown("##### Especificaciones Técnicas (Tenis/Ropa)")
+                c1, c2 = st.columns(2)
+                f_sku = c1.text_input("Código SKU Interno", d_sku, disabled=(act in ["Modificar Datos", "Ajuste de Existencias"]))
+                f_mod = c2.text_input("Descripción Comercial", d_mod, disabled=(act=="Ajuste de Existencias"))
+                
+                c3, c_talla, c_gen = st.columns(3)
+                f_cat = c3.selectbox("Línea de Producto", ["Calzado", "Ropa", "Accesorios"], index=["Calzado", "Ropa", "Accesorios"].index(d_cat) if d_cat in ["Calzado", "Ropa", "Accesorios"] else 0) 
+                # MEJORA: Campos integrados en tu formulario
+                f_talla = c_talla.text_input("Número / Talla", d_talla)
+                f_gen = c_gen.selectbox("Género", ["Hombre", "Mujer", "Unisex", "Niños"], index=["Hombre", "Mujer", "Unisex", "Niños"].index(d_gen) if d_gen in ["Hombre", "Mujer", "Unisex", "Niños"] else 2)
+                
+                c4, c5 = st.columns(2)
+                f_qty = c4.number_input("Unidades Físicas Ingresadas", value=d_qty)
+                f_min = c5.number_input("Punto de Reorden (Stock Mínimo)", value=d_min) 
+                
+                st.markdown("##### Parámetros de Rentabilidad")
+                c6, c7, c8 = st.columns(3)
+                f_cos = c6.number_input("Costo de Adquisición Unitario", value=d_cost)
+                f_pv = c7.number_input("Precio de Venta Sugerido", value=d_pv)
+                f_lnk = c8.text_input("Identificador de Proveedor", d_link)
+                
+                c9, c10 = st.columns(2)
+                f_ml = c9.number_input("Precio Mercado Libre", value=d_ml) 
+                f_amz = c10.number_input("Precio Amazon", value=d_amz) 
+                
+                if st.form_submit_button("Aplicar Cambios en Base de Datos"):
+                    if not f_mod or not f_talla: st.error("La descripción y la talla son obligatorias.")
                     else:
-                        idx = df_inv.index[df_inv['SKU'] == f_sku].tolist()
-                        if idx: # Update
-                            i = idx[0]
-                            df_inv.at[i, 'Cantidad'] += f_qty
-                            df_inv.at[i, 'Precio_Venta'] = f_pv
-                            st.success("Inventario actualizado. Se sumó mercancía al SKU existente.")
-                        else: # Insert
-                            new_d = {'SKU': f_sku, 'Categoria': f_cat, 'Genero': f_gen, 'Modelo': f_mod, 'Talla': f_talla, 'Tipo': 'Retail', 'Cantidad': f_qty, 'Stock_Minimo': f_min, 'Costo_Unitario': f_cos, 'Precio_Venta': f_pv, 'Proveedor': ''}
+                        f_mod = sanitizar_texto(f_mod)
+                        f_sku = sanitizar_texto(f_sku)
+                        if not f_sku: f_sku = f"TR-{str(uuid.uuid4())[:6].upper()}"
+                        # MEJORA: Diccionario actualizado
+                        new_d = {'SKU': f_sku, 'Categoria': f_cat, 'Genero': f_gen, 'Modelo': f_mod, 'Talla': f_talla, 'Tipo': 'Retail', 'Cantidad': f_qty, 'Stock_Minimo': f_min, 'Costo_Unitario': f_cos, 'Precio_Venta': f_pv, 'Proveedor': f_lnk, 'Precio_ML': f_ml, 'Precio_Amazon': f_amz}
+                        
+                        if act in ["Modificar Datos", "Ajuste de Existencias"] and idx_e != -1:
+                            diff = f_qty - df_inv.at[idx_e, 'Cantidad']
+                            for k,v in new_d.items(): df_inv.at[idx_e, k] = v
+                            guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                            registrar_historial("AJUSTE_INV", f_sku, f_mod, abs(diff), 0, 0, "Modificación desde Panel Admin")
+                            st.success("Registro actualizado en la base de datos.")
+                        else:
                             df_inv = pd.concat([df_inv, pd.DataFrame([new_d])], ignore_index=True)
-                            st.success("Mercancía subida correctamente.")
-                        guardar_df(df_inv, ARCHIVO_INVENTARIO)
-                        registrar_historial("SUBIR_MERCANCIA", f_sku, f_mod, f_qty, 0, f_cos, "Carga en Catálogo")
-                        time.sleep(0.5); st.rerun()
+                            guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                            registrar_historial("ENTRADA_INV", f_sku, f_mod, f_qty, 0, f_cos, "Alta de Nuevo Artículo")
+                            st.success("Artículo dado de alta exitosamente.")
+                        time.sleep(1)
+                        st.rerun()
 
-    # 5. REPORTES Y BONOS
+    # 5. REPORTES FINANCIEROS Y BONOS
     if t_rep:
         with t_rep:
-            df_full = calc_stats()
-            if not df_full.empty:
-                st.markdown("#### Bonos por Ventas")
-                meta = st.number_input("Meta de Venta Mensual ($) para Bono:", value=10000)
-                bono_pct = st.number_input("Porcentaje de Bono sobre excedente (%):", value=5.0) / 100
+            st.markdown("#### Análisis Comercial")
+            freq = st.radio("Período de Agrupación:", ["Diario", "Mensual"], horizontal=True)
+            
+            if df_full is not None and not df_full.empty:
+                df_c = df_full.copy()
+                grp = df_c['Fecha_Dt'].dt.date if freq=="Diario" else df_c['Fecha_Dt'].dt.strftime('%Y-%m')
                 
-                vs = df_full[df_full['Accion'].str.contains('VENTA')]
+                st.markdown("### Estado de Resultados")
+                tab = df_c.groupby(grp)[['Monto_Venta', 'Monto_Gasto']].sum()
+                tab.columns = ['Ingresos Brutos', 'Costo de Adquisición/Gastos']
+                tab['Utilidad Operativa'] = tab['Ingresos Brutos'] - tab['Costo de Adquisición/Gastos']
+                st.dataframe(tab.style.format("${:,.2f}"), use_container_width=True)
+                
+                csv = tab.to_csv().encode('utf-8')
+                st.download_button(label="📥 Exportar Reporte (.csv)", data=csv, file_name='reporte_financiero_tr.csv', mime='text/csv')
+
+                st.divider()
+                st.markdown("### Indicadores de Desempeño")
+                c1, c2 = st.columns(2)
+                imp_pct = c1.number_input("Carga Impositiva (%)", 16.0) / 100
+                com_pct = c2.number_input("Costos Logísticos/TPV (%)", 4.0) / 100
+                
+                vs = df_c[df_c['Accion'].str.contains('VENTA')]
+                if not vs.empty:
+                    tot_v = vs['Monto_Venta'].sum()
+                    tot_c = vs['Costo_Venta'].sum() 
+                    bruta = tot_v - tot_c
+                    gastos_variables = tot_v * (imp_pct + com_pct)
+                    neta = bruta - gastos_variables
+                    num_transacciones = len(vs)
+                    ticket_promedio = tot_v / num_transacciones if num_transacciones > 0 else 0
+                    
+                    m1, m2, m3 = st.columns(3)
+                    m1.metric("Facturación Total", f"${tot_v:,.2f}")
+                    m2.metric("CMV", f"-${tot_c:,.2f}")
+                    m3.metric("Utilidad Bruta", f"${bruta:,.2f}")
+                    
+                    m4, m5, m6 = st.columns(3)
+                    m4.metric("Deducciones", f"-${gastos_variables:,.2f}")
+                    m5.metric("Utilidad Neta", f"${neta:,.2f}")
+                    m6.metric("Margen Neto (%)", f"{(neta/tot_v)*100:.2f}%" if tot_v > 0 else "0.00%")
+                    st.info(f"💡 Se han realizado **{num_transacciones}** ventas. Ticket promedio: **${ticket_promedio:,.2f}**.")
+                
+                st.divider()
+                st.markdown("##### Rendimiento por Asesor y Bonos")
                 if not vs.empty:
                     com = vs.groupby('Usuario')['Monto_Venta'].sum().reset_index()
-                    com['Meta Alcanzada'] = com['Monto_Venta'] >= meta
-                    com['Bono Extra'] = com.apply(lambda x: (x['Monto_Venta'] - meta) * bono_pct if x['Meta Alcanzada'] else 0, axis=1)
-                    com['Pago Total (Venta + Bono)'] = com['Monto_Venta'] + com['Bono Extra']
-                    st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Bono Extra': '${:,.2f}', 'Pago Total (Venta + Bono)': '${:,.2f}'}), use_container_width=True)
+                    com['Comisión Base (3%)'] = com['Monto_Venta'] * 0.03
                     
-                    csv_rep = com.to_csv(index=False).encode('utf-8')
-                    st.download_button(label="📥 Descargar Reporte de Bonos (.csv)", data=csv_rep, file_name=f'reporte_bonos_{datetime.now().strftime("%Y%m")}.csv', mime='text/csv')
+                    # MEJORA: Sistema de Bonos
+                    meta = st.number_input("Meta de Venta para Bono Extra ($):", value=10000)
+                    bono_pct = st.number_input("Porcentaje de Bono sobre excedente (%):", value=5.0) / 100
+                    com['Bono Extra'] = com.apply(lambda x: (x['Monto_Venta'] - meta) * bono_pct if x['Monto_Venta'] >= meta else 0, axis=1)
+                    com['Total a Pagar'] = com['Comisión Base (3%)'] + com['Bono Extra']
+                    
+                    st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Comisión Base (3%)': '${:,.2f}', 'Bono Extra': '${:,.2f}', 'Total a Pagar': '${:,.2f}'}), use_container_width=True)
 
-    # 6. CRM (Mensajes Clientes y Proveedores)
+    # 6. CRM Y CENTRO DE ENVÍO
     if t_crm:
         with t_crm:
-            st.markdown("#### Libreta de Mensajes y Contactos")
-            with st.form("crm_form", clear_on_submit=True):
-                c1, c2 = st.columns(2)
-                tipo = c1.radio("Registro para:", ["Proveedor", "Cliente"])
-                nombre = c2.text_input("Nombre de la Persona / Empresa")
-                contacto = st.text_input("Teléfono o Correo")
-                nota = st.text_area("Mensaje / Petición / Nota")
-                
-                if st.form_submit_button("Guardar Mensaje"):
-                    if nombre and nota:
-                        new_crm = {'Tipo': tipo, 'Nombre': nombre, 'Contacto': contacto, 'Mensaje_Nota': nota, 'Fecha': datetime.now().strftime("%Y-%m-%d")}
-                        df_crm = pd.concat([df_crm, pd.DataFrame([new_crm])], ignore_index=True)
-                        guardar_df(df_crm, ARCHIVO_CRM)
-                        st.success("Guardado en el directorio.")
-                        time.sleep(0.5); st.rerun()
+            c_form, c_action = st.columns([1, 1])
+            
+            with c_form:
+                st.markdown("#### 📖 Guardar Contacto")
+                with st.form("crm_form", clear_on_submit=True):
+                    tipo = st.radio("Clasificación:", ["Cliente", "Proveedor"], horizontal=True)
+                    nombre = st.text_input("Nombre / Empresa")
+                    contacto = st.text_input("Teléfono (Ej. 6676562718) o Correo")
+                    nota = st.text_area("Nota o Petición")
+                    if st.form_submit_button("Guardar"):
+                        if nombre and contacto:
+                            new_crm = {'Tipo': tipo, 'Nombre': nombre, 'Contacto': contacto, 'Mensaje_Nota': nota, 'Fecha': datetime.now().strftime("%Y-%m-%d")}
+                            df_crm = pd.concat([df_crm, pd.DataFrame([new_crm])], ignore_index=True)
+                            guardar_df(df_crm, ARCHIVO_CRM)
+                            st.success("Guardado.")
+                            time.sleep(0.5); st.rerun()
 
+            with c_action:
+                st.markdown("#### 🚀 Centro de Acción Rápida")
+                if not df_crm.empty:
+                    contacto_sel = st.selectbox("Seleccione a quién contactar:", df_crm['Nombre'].unique())
+                    datos_contacto = df_crm[df_crm['Nombre'] == contacto_sel].iloc[0]
+                    num_correo = str(datos_contacto['Contacto']).strip()
+                    
+                    st.info(f"**Contacto:** {num_correo}\n\n**Nota:** {datos_contacto['Mensaje_Nota']}")
+                    
+                    msg_pred = f"Hola {contacto_sel}, te contactamos de la gerencia de Tenis Rey."
+                    num_limpio = ''.join(filter(str.isdigit, num_correo))
+                    
+                    # Generador de botones dinámicos según el dato guardado
+                    if num_limpio and len(num_limpio) >= 10:
+                        link_wa = f"https://wa.me/52{num_limpio}?text={msg_pred.replace(' ', '%20')}"
+                        st.link_button("🟢 Enviar WhatsApp Web", link_wa, use_container_width=True)
+                    
+                    if "@" in num_correo and "." in num_correo:
+                        link_mail = f"mailto:{num_correo}?subject=Seguimiento%20Tenis%20Rey&body={msg_pred.replace(' ', '%20')}"
+                        st.link_button("📧 Redactar Correo Electrónico", link_mail, use_container_width=True)
+                else:
+                    st.info("Directorio vacío.")
+            
             st.divider()
             c_cli, c_pro = st.columns(2)
             with c_cli:
-                st.markdown("##### Mensajes de Clientes")
-                st.dataframe(df_crm[df_crm['Tipo']=='Cliente'][['Fecha', 'Nombre', 'Mensaje_Nota']], hide_index=True)
+                st.markdown("##### Clientes")
+                st.dataframe(df_crm[df_crm['Tipo']=='Cliente'][['Fecha', 'Nombre', 'Contacto']], hide_index=True)
             with c_pro:
-                st.markdown("##### Mensajes de Proveedores")
-                st.dataframe(df_crm[df_crm['Tipo']=='Proveedor'][['Fecha', 'Nombre', 'Mensaje_Nota']], hide_index=True)
-
-            st.divider()
-            # ==========================================
-            # NUEVO: CENTRO DE ENVÍO DE MENSAJES REALES
-            # ==========================================
-            st.markdown("#### 🚀 Centro de Envío Rápido")
-            if not df_crm.empty:
-                c_sel, c_acc = st.columns([2, 2])
-                with c_sel:
-                    contacto_sel = st.selectbox("Seleccione un contacto guardado:", df_crm['Nombre'].unique())
-                    datos_contacto = df_crm[df_crm['Nombre'] == contacto_sel].iloc[0]
-                    num_correo = str(datos_contacto['Contacto']).strip()
-                    st.info(f"**Vía de contacto registrada:** {num_correo}")
-                
-                with c_acc:
-                    st.write("Acciones de Comunicación:")
-                    msg_pred = f"Hola {contacto_sel}, te contactamos de la gerencia de Tenis Rey."
-                    
-                    # Extraer solo números para validación de WhatsApp
-                    num_limpio = ''.join(filter(str.isdigit, num_correo))
-                    
-                    col_wa, col_em = st.columns(2)
-                    
-                    # Botón dinámico de WhatsApp
-                    if num_limpio and len(num_limpio) >= 10:
-                        link_wa = f"https://wa.me/{num_limpio}?text={msg_pred.replace(' ', '%20')}"
-                        col_wa.link_button("🟢 Enviar WhatsApp", link_wa, use_container_width=True)
-                    else:
-                        col_wa.button("🟢 Enviar WhatsApp", disabled=True, help="Requiere un número de 10 dígitos", use_container_width=True)
-                        
-                    # Botón dinámico de Correo Electrónico
-                    if "@" in num_correo and "." in num_correo:
-                        link_mail = f"mailto:{num_correo}?subject=Seguimiento%20Tenis%20Rey&body={msg_pred.replace(' ', '%20')}"
-                        col_em.link_button("📧 Enviar Correo", link_mail, use_container_width=True)
-                    else:
-                        col_em.button("📧 Enviar Correo", disabled=True, help="Requiere un formato de correo válido (@)", use_container_width=True)
-            else:
-                st.info("Guarde un contacto en la libreta superior para habilitar el envío rápido de mensajes.")
+                st.markdown("##### Proveedores")
+                st.dataframe(df_crm[df_crm['Tipo']=='Proveedor'][['Fecha', 'Nombre', 'Contacto']], hide_index=True)
