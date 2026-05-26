@@ -253,7 +253,7 @@ if not st.session_state.sesion_iniciada:
         st.markdown("""
             <div class="login-card">
                 <h2 style='text-align: center; margin-bottom: 0;'>TENIS REY</h2>
-                <p style='text-align: center; opacity: 0.8; font-weight: 600; color: #B71C1C;'>ERP & Punto de Venta</p>
+                <p style='text-align: center; opacity: 0.8; font-weight: 600; color: #B71C1C;'>Sport & Punto de Venta</p>
                 <hr style='border-color: rgba(183, 28, 28, 0.2);'>
             </div>
         """, unsafe_allow_html=True)
