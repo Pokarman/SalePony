@@ -195,8 +195,7 @@ def generar_ticket(carrito_items, total, user, metodo_pago="Efectivo", pago_clie
         items_str += f" {str(item['Cantidad']).center(4)} | {item['Modelo'][:19]:<19} | ${item['Subtotal']:,.2f}\n"
         items_str += f" SKU: {item['SKU']}\n"
         
-    # Retornamos dos versiones: el texto plano (para .txt) y el HTML (para imprimir/PDF)
-    ticket_txt = f"""
+    return f"""
 ========================================
          TENIS REY - SUCURSAL
 ========================================
@@ -214,77 +213,278 @@ def generar_ticket(carrito_items, total, user, metodo_pago="Efectivo", pago_clie
         cualquier aclaración.
 ========================================
     """
-    
-    # Generamos el HTML que se usará para la impresión visual
-    items_html = ""
-    for item in carrito_items:
-        items_html += f"<tr><td style='padding: 5px 0; border-bottom: 1px dashed #ccc;'>{item['Cantidad']}x</td><td style='padding: 5px 0; border-bottom: 1px dashed #ccc;'>{item['Modelo']}<br><small style='color: #666;'>SKU: {item['SKU']}</small></td><td style='text-align: right; padding: 5px 0; border-bottom: 1px dashed #ccc;'>${item['Subtotal']:,.2f}</td></tr>"
+
+def sincronizar(df_inv):
+    nuevos = []
+    time.sleep(1) # Simulación de conexión API
+    if not df_inv.empty and random.random() > 0.6:
+        stock = df_inv[df_inv['Cantidad'] > 0]
+        if not stock.empty:
+            p = stock.sample(1).iloc[0]
+            if p['Cantidad'] > 0:
+                nuevos.append({'Plataforma': 'Mercado Libre', 'SKU': p['SKU'], 'Modelo': p['Modelo'], 'Cantidad': 1})
+    return nuevos
+
+def calc_stats():
+    if not os.path.exists(ARCHIVO_HISTORIAL): return None, None, pd.DataFrame()
+    try: df = pd.read_csv(ARCHIVO_HISTORIAL); df['Fecha_Dt'] = pd.to_datetime(df['Fecha'])
+    except: return None, None, pd.DataFrame()
+    if 'Monto_Gasto' not in df.columns: df['Monto_Gasto'] = 0.0
+    if 'Metodo_Pago' not in df.columns: df['Metodo_Pago'] = "Efectivo"
+    return df, None, df
+
+# ==========================================
+# 4. INTERFAZ
+# ==========================================
+
+if not st.session_state.sesion_iniciada:
+    c1, c2, c3 = st.columns([1,2,1])
+    with c2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("""
+            <div class="login-card">
+                <h1 style='text-align: center; margin-bottom: 0;'>👟 TENIS REY</h1>
+                <p style='text-align: center; opacity: 0.8; font-weight: 600; color: #B71C1C;'>Sport & Punto de Venta</p>
+                <hr style='border-color: rgba(183, 28, 28, 0.2);'>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
         
-    pago_html = ""
-    if metodo_pago == "Efectivo":
-        pago_html = f"<tr><td>Efectivo Recibido:</td><td colspan='2' style='text-align: right;'>${pago_cliente:,.2f}</td></tr><tr><td>Cambio:</td><td colspan='2' style='text-align: right;'>${cambio:,.2f}</td></tr>"
+        with st.form("login"):
+            u = st.text_input("Identificador de Usuario", placeholder="Ingrese su usuario")
+            p = st.text_input("Contraseña", type="password", placeholder="••••••••")
+            if st.form_submit_button("INICIAR SESIÓN"):
+                val = verificar_login(u, p)
+                if val is not None:
+                    st.session_state.sesion_iniciada = True
+                    st.session_state.rol_usuario = val['Rol']
+                    st.session_state.nombre_usuario = val['Nombre']
+                    st.session_state.usuario_id = val['Usuario']
+                    st.rerun()
+                else: st.error("Autenticación fallida. Verifique sus credenciales.")
 
-    ticket_html = f"""
-    <html><head><style>
-        body {{ font-family: 'Courier New', Courier, monospace; width: 300px; margin: auto; padding: 20px; color: #000; background: #fff; }}
-        h2 {{ text-align: center; font-size: 18px; margin-bottom: 5px; }}
-        p {{ font-size: 12px; margin: 2px 0; }}
-        .center {{ text-align: center; }}
-        table {{ width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; margin-bottom: 10px; }}
-        th {{ border-bottom: 1px solid #000; text-align: left; padding-bottom: 5px; }}
-        .total {{ font-weight: bold; font-size: 14px; margin-top: 10px; text-align: right; border-top: 1px solid #000; padding-top: 5px; }}
-    </style></head><body>
-        <h2>TENIS REY</h2>
-        <p class="center">SUCURSAL PRINCIPAL</p>
-        <p>-----------------------------------</p>
-        <p>Fecha: {datetime.now().strftime("%d/%m/%Y %H:%M")}</p>
-        <p>Cajero: {user}</p>
-        <p>Pago: {metodo_pago}</p>
-        <p>-----------------------------------</p>
-        <table>
-            <thead><tr><th>Cant</th><th>Descripción</th><th style="text-align:right;">Importe</th></tr></thead>
-            <tbody>
-                {items_html}
-            </tbody>
-        </table>
-        <div class="total">TOTAL: ${total:,.2f}</div>
-        <table style="margin-top: 5px; border-top: none;"><tbody>{pago_html}</tbody></table>
-        <p>-----------------------------------</p>
-        <p class="center" style="margin-top: 10px;">¡GRACIAS POR SU COMPRA!</p>
-        <p class="center" style="font-size: 10px; color: #666;">Conserve este comprobante para aclaraciones.</p>
-        <script>
-            window.onload = function() {{ window.print(); }}
-        </script>
-    </body></html>
-    """
+else:
+    df_inv = cargar_inventario()
+    df_ped = cargar_csv(ARCHIVO_PEDIDOS, ['ID_Pedido','Fecha','SKU','Modelo','Cantidad','Plataforma','Estado'])
+    df_crm = cargar_csv(ARCHIVO_CRM, ['Tipo', 'Nombre', 'Contacto', 'Mensaje_Nota', 'Fecha'])
     
-    return ticket_txt, ticket_html
+    if df_crm.empty:
+        df_crm = pd.DataFrame([{'Tipo': 'Proveedor', 'Nombre': 'Alan (Soporte Técnico)', 'Contacto': '6676562718 / alanbdb64@gmail.com', 'Mensaje_Nota': 'Contacto principal del sistema.', 'Fecha': datetime.now().strftime("%Y-%m-%d")}])
+        guardar_df(df_crm, ARCHIVO_CRM)
+    
+    # --- BARRA LATERAL ---
+    with st.sidebar:
+        st.markdown(f"#### Panel de Usuario")
+        st.write(f"👤 **{st.session_state.nombre_usuario}**")
+        st.caption(f"Perfil: {st.session_state.rol_usuario}")
+        
+        if st.button("🔄 Refrescar Sistema", help="Actualiza los datos en pantalla"):
+            st.cache_data.clear()
+            st.rerun()
+            
+        st.divider()
+        
+        with st.expander("📊 Simulador de Rentabilidad"):
+            c = st.number_input("Costo Unitario ($)", 0.0, step=10.0)
+            e = st.number_input("Gastos Logísticos ($)", 0.0, step=10.0)
+            v = st.number_input("Precio de Venta ($)", 0.0, step=10.0)
+            if st.button("Calcular Utilidad"):
+                gan = v - (c + e) - (v * 0.15) 
+                if gan > 0: st.success(f"Utilidad Proyectada: ${gan:,.2f}")
+                else: st.error(f"Pérdida Proyectada: ${gan:,.2f}")
 
-# ... [código de sincronizar y calc_stats igual] ...
+        with st.expander("💵 Arqueo de Caja"):
+            raw, _, df_full = calc_stats()
+            esperado = 0.0
+            if df_full is not None and not df_full.empty:
+                hoy = datetime.now().date()
+                mask = (df_full['Fecha_Dt'].dt.date == hoy) & (df_full['Accion'].str.contains('VENTA')) & (df_full['Usuario'] == st.session_state.nombre_usuario)
+                ventas_hoy = df_full[mask]
+                
+                efectivo = ventas_hoy[ventas_hoy['Metodo_Pago'] == 'Efectivo']['Monto_Venta'].sum()
+                tarjeta = ventas_hoy[ventas_hoy['Metodo_Pago'] == 'Tarjeta']['Monto_Venta'].sum()
+                transf = ventas_hoy[ventas_hoy['Metodo_Pago'] == 'Transferencia']['Monto_Venta'].sum()
+                esperado = efectivo 
+                
+                st.write(f"💵 Efectivo en Sistema: **${efectivo:,.2f}**")
+                st.write(f"💳 Tarjetas: ${tarjeta:,.2f}")
+                st.write(f"🏦 Transferencias: ${transf:,.2f}")
+                st.markdown(f"**Total General Registrado:** ${(efectivo+tarjeta+transf):,.2f}")
+            else:
+                st.write("Sin ventas hoy.")
+
+            real = st.number_input("Efectivo Físico en Caja:", 0.0)
+            if st.button("Realizar Arqueo"):
+                diff = real - esperado
+                if diff == 0: st.success("✅ Cuadre de caja correcto.")
+                else: st.warning(f"Diferencia en EFECTIVO detectada: ${diff:,.2f}")
+
+        if st.session_state.rol_usuario == "Administrador":
+            with st.expander("🔌 Integración E-commerce"):
+                ml_token_env = os.environ.get("ML_TOKEN", "")
+                st.text_input("API Key Mercado Libre", value=ml_token_env, type="password")
+                st.text_input("API Key Amazon Seller", type="password")
+
+        st.markdown("---")
+        if st.button("📥 Sincronizar Órdenes (B2C)"):
+            with st.spinner("Conectando con plataformas..."):
+                news = sincronizar(df_inv)
+                if news:
+                    for n in news:
+                        idx = df_inv[df_inv['SKU']==n['SKU']].index[0]
+                        df_inv.at[idx, 'Cantidad'] -= n['Cantidad']
+                        reg = {'ID_Pedido':f"ORD-{int(time.time())}", 'Fecha':datetime.now().strftime("%Y-%m-%d"), 'SKU':n['SKU'], 'Modelo':n['Modelo'], 'Cantidad':n['Cantidad'], 'Plataforma':n['Plataforma'], 'Estado':'Pendiente'}
+                        df_ped = pd.concat([df_ped, pd.DataFrame([reg])], ignore_index=True)
+                        registrar_historial("VENTA_AUTO", n['SKU'], n['Modelo'], n['Cantidad'], 0, 0, "Orden B2C Generada", "Transferencia")
+                    guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                    guardar_df(df_ped, ARCHIVO_PEDIDOS)
+                    st.success(f"Se procesaron {len(news)} órdenes nuevas.")
+                    time.sleep(1)
+                    st.rerun()
+                else: st.info("Inventario y órdenes sincronizadas. Sin novedades.")
+
+        with st.expander("🛠️ Reportar Incidencia", expanded=False):
+            key_din = f"txt_soporte_{st.session_state.contador_soporte}"
+            msg_err = st.text_area("Describa el error del sistema:", key=key_din)
+            archivo_adjunto = st.file_uploader("Adjuntar captura de pantalla (Opcional)", type=['png', 'jpg', 'jpeg'], key=f"adjunto_{st.session_state.contador_soporte}")
+            
+            if st.button("Enviar Ticket de Soporte"):
+                if msg_err:
+                    with st.spinner("Enviando reporte..."):
+                        if enviar_correo_soporte(msg_err, archivo_adjunto):
+                            st.success("Ticket enviado al administrador.")
+                            st.session_state.contador_soporte += 1
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error("Hubo un error al enviar el reporte. Verifique la conexión.")
+                else:
+                    st.warning("Debe describir el error para poder enviarlo.")
+
+        if st.button("Cerrar Sesión"):
+            st.session_state.sesion_iniciada = False
+            st.rerun()
+
+        if st.session_state.rol_usuario == "Administrador":
+            with st.expander("⚠️ Mantenimiento de Base de Datos", expanded=False):
+                if st.button("Purgar Historial de Transacciones"):
+                    if os.path.exists(ARCHIVO_HISTORIAL): os.remove(ARCHIVO_HISTORIAL)
+                    if os.path.exists(ARCHIVO_PEDIDOS): os.remove(ARCHIVO_PEDIDOS)
+                    st.cache_data.clear()
+                    st.rerun()
+
+    # --- ÁREA DE TRABAJO PRINCIPAL ---
+    st.markdown("<h2 style='margin-bottom: 0;'>👟 Panel de Control - Tenis Rey Sport</h2>", unsafe_allow_html=True)
+    
+    pend = df_ped[df_ped['Estado']=='Pendiente'].shape[0]
+    low = df_inv[df_inv['Cantidad'] <= df_inv['Stock_Minimo']].shape[0]
+    valor_inventario = (df_inv['Cantidad'] * df_inv['Costo_Unitario']).sum() if not df_inv.empty else 0.0
+    
+    raw, _, df_full = calc_stats()
+    vhoy = 0
+    if df_full is not None and not df_full.empty:
+        vhoy = df_full[(df_full['Fecha_Dt'].dt.date == datetime.now().date()) & (df_full['Accion'].str.contains('VENTA'))]['Monto_Venta'].sum()
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Ingresos Diarios", f"${vhoy:,.2f}")
+    k2.metric("Órdenes Pendientes", pend, delta_color="inverse" if pend>0 else "normal")
+    k3.metric("Alertas de Stock", low, delta_color="inverse")
+    k4.metric("Valor del Inventario", f"${valor_inventario:,.2f}")
+
+    st.divider()
+
+    tabs = st.tabs(["📦 ÓRDENES E-COMMERCE", "🛒 Vender o Salida de Mercancía", "👟 INVENTARIO", "📝 INGRESAR O EDITAR CATÁLOGO", "📊 REPORTES", "📞 CRM & MENSAJES"]) if st.session_state.rol_usuario == "Administrador" else st.tabs(["📦 ÓRDENES", "🛒 TPV", "👟 INVENTARIO", "📊 MIS VENTAS", "📞 CRM & MENSAJES"])
+    t_ped, t_pos, t_inv = tabs[0], tabs[1], tabs[2]
+    
+    if st.session_state.rol_usuario == "Administrador":
+        t_adm, t_rep, t_crm = tabs[3], tabs[4], tabs[5]
+    else:
+        t_adm, t_rep, t_crm = None, tabs[3], tabs[4]
+
+    # 1. ÓRDENES
+    with t_ped:
+        p = df_ped[df_ped['Estado']=='Pendiente']
+        if p.empty: st.success("No hay órdenes pendientes de despacho.")
+        else:
+            for i, r in p.iterrows():
+                with st.container():
+                    c1, c2, c3, c4 = st.columns([0.5, 3, 2, 1.5])
+                    icon = "👕" if "Ropa" in r['Modelo'] or "Playera" in r['Modelo'] else "👟"
+                    c1.markdown(f"<h4>{icon}</h4>", unsafe_allow_html=True)
+                    c2.markdown(f"**{r['Modelo']}**")
+                    c2.caption(f"SKU: {r['SKU']} | Unidades: **{r['Cantidad']}**")
+                    c3.write(f"Ref. Externa: {r['ID_Pedido']}")
+                    if c4.button("Confirmar Despacho", key=r['ID_Pedido']):
+                        df_ped.loc[df_ped['ID_Pedido']==r['ID_Pedido'], 'Estado']='Enviado'
+                        guardar_df(df_ped, ARCHIVO_PEDIDOS)
+                        st.rerun()
+                    st.divider()
 
     # 2. TPV (PUNTO DE VENTA)
     with t_pos:
         c1, c2 = st.columns([1.2, 1])
-# ... [lógica de búsqueda y carrito igual hasta el botón de procesar transacción] ...
-
-                if st.button("✅ PROCESAR TRANSACCIÓN MULTIPLE", type="primary", use_container_width=True, disabled=disable_btn):
-                    # Descontar todo del inventario y registrar en historial iterando el carrito
-                    for item in st.session_state.carrito:
-                        idx_inv = df_inv[df_inv['SKU']==item['SKU']].index[0]
-                        df_inv.at[idx_inv, 'Cantidad'] -= item['Cantidad']
-                        registrar_historial("VENTA", item['SKU'], item['Modelo'], item['Cantidad'], item['Precio_Venta'], item['Costo_Unitario'], "Venta Múltiple TPV", metodo)
-                        
-                    guardar_df(df_inv, ARCHIVO_INVENTARIO)
-                    # Cambié para recibir las dos versiones del ticket
-                    txt_ticket, html_ticket = generar_ticket(st.session_state.carrito, tot_carrito, st.session_state.nombre_usuario, metodo, pago_cliente, cambio)
-                    st.session_state.ultimo_ticket = txt_ticket
-                    st.session_state.ultimo_ticket_html = html_ticket # Guardamos el HTML también
+        with c1:
+            st.markdown("#### Búsqueda de Artículo")
+            
+            # Formulario para asegurar que en celular se pueda forzar la búsqueda
+            with st.form("form_buscar_tpv", clear_on_submit=False):
+                col_search, col_btn = st.columns([4, 1])
+                scan_input = col_search.text_input("Búsqueda de Artículo:", placeholder="Escanee código de barras o ingrese SKU/descripción...", label_visibility="collapsed")
+                submit_search = col_btn.form_submit_button("🔍 Buscar")
+            
+            # Usar la entrada del formulario o el estado de sesión si acaba de enviar
+            scan = scan_input if submit_search else st.session_state.busqueda_manual
+            st.session_state.busqueda_manual = scan_input # Guardar para recargas
+            
+            sel = None
+            if scan:
+                scan = sanitizar_texto(scan)
+                f = df_inv[df_inv['SKU'].astype(str).str.upper() == scan.upper()]
+                if not f.empty: sel = f.iloc[0]
+                else: 
+                    fn = df_inv[df_inv['Modelo'].str.contains(scan, case=False)]
+                    if not fn.empty: sel = fn.iloc[0]
+            
+            if sel is None and not df_inv.empty:
+                op = df_inv[df_inv['Cantidad']>0].apply(lambda x: f"{x['Modelo']} (Talla: {x['Talla'] if str(x['Talla']) != '' else 'Única'}) | {x['SKU']}", axis=1)
+                s = st.selectbox("Selección desde Catálogo:", op, index=None, placeholder="Elija un producto...", label_visibility="collapsed")
+                if s: sel = df_inv[df_inv['SKU'] == s.split(" | ")[1]].iloc[0]
+            
+            if sel is not None:
+                idx = df_inv[df_inv['SKU']==sel['SKU']].index[0]
+                
+                # Descontar visualmente lo que ya está en el carrito para no vender de más
+                qty_in_cart = sum(item['Cantidad'] for item in st.session_state.carrito if item['SKU'] == sel['SKU'])
+                stock_real = int(df_inv.at[idx, 'Cantidad']) - qty_in_cart
+                stock_min = int(df_inv.at[idx, 'Stock_Minimo'])
+                
+                if stock_real <= stock_min:
+                    st.warning(f"⚠️ **{sel['Modelo']}** | Disponible para añadir: {stock_real} unidades (¡Nivel Bajo!)")
+                else:
+                    st.info(f"**{sel['Modelo']}** | Disponible para añadir: {stock_real} unidades")
+                
+                if stock_real > 0:
+                    cq, cp = st.columns(2)
+                    q = cq.number_input("Cantidad a añadir", 1, stock_real, 1)
+                    tot_item = sel['Precio_Venta'] * q
+                    cp.metric("Subtotal Artículo", f"${tot_item:,.2f}")
                     
-                    st.session_state.carrito = [] # Vaciar carrito tras la compra exitosa
-                    st.session_state.busqueda_manual = "" # Limpia también la barra
-                    st.success("Transacción registrada correctamente.")
-                    time.sleep(0.5)
-                    st.rerun()
+                    if st.button("🛒 AÑADIR AL CARRITO", use_container_width=True):
+                        st.session_state.carrito.append({
+                            'SKU': sel['SKU'],
+                            'Modelo': sel['Modelo'],
+                            'Cantidad': q,
+                            'Precio_Venta': sel['Precio_Venta'],
+                            'Costo_Unitario': sel['Costo_Unitario'],
+                            'Subtotal': tot_item
+                        })
+                        st.session_state.busqueda_manual = "" # Limpiar la búsqueda tras agregar
+                        st.success(f"{q}x {sel['Modelo']} añadido al carrito.")
+                        time.sleep(0.5)
+                        st.rerun()
+                else:
+                    st.error("El artículo seleccionado se encuentra agotado o ya agregaste todo el stock disponible al carrito.")
+                    st.button("🛒 AÑADIR AL CARRITO", disabled=True, key="btn_agotado")
 
         with c2:
             st.markdown("#### Carrito de Compras")
@@ -296,34 +496,14 @@ def generar_ticket(carrito_items, total, user, metodo_pago="Efectivo", pago_clie
                     with st.expander("🧾 Ver / Enviar Última Transacción", expanded=True):
                         st.code(st.session_state.ultimo_ticket, language="text")
                         
-                        # --- NUEVOS BOTONES DE DESCARGA E IMPRESIÓN ---
-                        col_btn1, col_btn2 = st.columns(2)
-                        
-                        with col_btn1:
-                            st.download_button(
-                                label="📥 Descargar (.txt)",
-                                data=st.session_state.ultimo_ticket,
-                                file_name=f"Ticket_TenisRey_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                                mime="text/plain",
-                                use_container_width=True
-                            )
-                        
-                        with col_btn2:
-                            # Inyectamos un iframe invisible que contiene el HTML del ticket y se imprime solo
-                            import base64
-                            b64_html = base64.b64encode(st.session_state.ultimo_ticket_html.encode("utf-8")).decode("utf-8")
-                            href = f"data:text/html;base64,{b64_html}"
-                            
-                            st.markdown(
-                                f"""<a href="{href}" target="_blank" style="text-decoration: none;">
-                                    <div style="width: 100%; text-align: center; background-color: var(--secondary-background-color); border: 1px solid rgba(128, 128, 128, 0.3); border-radius: 6px; padding: 0.5rem 1rem; color: var(--text-color); font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
-                                        🖨️ Imprimir / Guardar PDF
-                                    </div>
-                                </a>""", 
-                                unsafe_allow_html=True
-                            )
-                        
-                        st.divider()
+                        # Botón para descargar el ticket físico (TXT)
+                        st.download_button(
+                            label="📥 Descargar Ticket (TXT)",
+                            data=st.session_state.ultimo_ticket,
+                            file_name=f"Ticket_TenisRey_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
                         
                         st.markdown("#### 📤 Enviar Ticket al Cliente")
                         send_method = st.radio("Método de envío", ["WhatsApp", "Correo Electrónico"], horizontal=True, label_visibility="collapsed")
