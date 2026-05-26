@@ -841,33 +841,61 @@ else:
                     st.markdown("##### Rendimiento por Asesor y Bonos")
                     if not vs.empty:
                         com = vs.groupby('Usuario')['Monto_Venta'].sum().reset_index()
+                        
+                        # --- NUEVO: TOP VENDEDOR ---
+                        st.markdown("###### 🏆 Reconocimiento al Mejor Vendedor")
+                        top_vendedor = com.loc[com['Monto_Venta'].idxmax()]
+                        
+                        c_top1, c_top2 = st.columns([1, 2])
+                        with c_top1:
+                            st.success(f"🥇 **{top_vendedor['Usuario'].upper()}**\n\nLíder de ventas con: **${top_vendedor['Monto_Venta']:,.2f}**")
+                        with c_top2:
+                            bono_top = st.number_input("Premio Especial 1er Lugar ($):", min_value=0.0, value=500.0, step=50.0)
+
+                        st.markdown("###### 💰 Cálculo General")
                         com['Comisión Base (3%)'] = com['Monto_Venta'] * 0.03
                         
-                        meta = st.number_input("Meta de Venta para Bono Extra ($):", value=10000)
-                        bono_pct = st.number_input("Porcentaje de Bono sobre excedente (%)", value=5.0) / 100
-                        com['Bono Extra'] = com.apply(lambda x: (x['Monto_Venta'] - meta) * bono_pct if x['Monto_Venta'] >= meta else 0, axis=1)
-                        com['Total a Pagar'] = com['Comisión Base (3%)'] + com['Bono Extra']
+                        c_meta1, c_meta2 = st.columns(2)
+                        meta = c_meta1.number_input("Meta de Venta para Bono Extra ($):", value=10000)
+                        bono_pct = c_meta2.number_input("Porcentaje de Bono sobre excedente (%)", value=5.0) / 100
                         
-                        st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Comisión Base (3%)': '${:,.2f}', 'Bono Extra': '${:,.2f}', 'Total a Pagar': '${:,.2f}'}), use_container_width=True)
+                        com['Bono Extra'] = com.apply(lambda x: (x['Monto_Venta'] - meta) * bono_pct if x['Monto_Venta'] >= meta else 0, axis=1)
+                        com['Premio 1er Lugar'] = com['Usuario'].apply(lambda x: bono_top if x == top_vendedor['Usuario'] else 0.0)
+                        com['Total a Pagar'] = com['Comisión Base (3%)'] + com['Bono Extra'] + com['Premio 1er Lugar']
+                        
+                        st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Comisión Base (3%)': '${:,.2f}', 'Bono Extra': '${:,.2f}', 'Premio 1er Lugar': '${:,.2f}', 'Total a Pagar': '${:,.2f}'}), use_container_width=True)
             else:
                 st.markdown("#### Mis Ventas y Progreso de Bonos")
                 if df_full is not None and not df_full.empty:
+                    # Lógica para saber globalmente quién va ganando
+                    vs_all = df_full[df_full['Accion'].str.contains('VENTA')]
+                    top_user = ""
+                    if not vs_all.empty:
+                        com_all = vs_all.groupby('Usuario')['Monto_Venta'].sum().reset_index()
+                        top_user = com_all.loc[com_all['Monto_Venta'].idxmax()]['Usuario']
+
                     vs = df_full[(df_full['Accion'].str.contains('VENTA')) & (df_full['Usuario'] == st.session_state.nombre_usuario)]
                     if not vs.empty:
                         tot_v = vs['Monto_Venta'].sum()
                         
-                        meta = st.number_input("Mi Meta de Venta para Bono Extra ($):", value=10000)
-                        bono_pct = st.number_input("Mi Porcentaje de Bono sobre excedente (%):", value=5.0) / 100
+                        if st.session_state.nombre_usuario == top_user:
+                            st.success("🏆 ¡Felicidades! Actualmente eres el VENDEDOR #1. ¡Mantén el ritmo para llevarte el bono especial!")
+
+                        c_meta1, c_meta2 = st.columns(2)
+                        meta = c_meta1.number_input("Mi Meta de Venta para Bono Extra ($):", value=10000)
+                        bono_pct = c_meta2.number_input("Mi Porcentaje de Bono sobre excedente (%):", value=5.0) / 100
                         
                         comision_base = tot_v * 0.03
                         bono_extra = (tot_v - meta) * bono_pct if tot_v >= meta else 0
-                        total_pagar = comision_base + bono_extra
+                        bono_primer_lugar = 500.0 if st.session_state.nombre_usuario == top_user else 0.0
+                        total_pagar = comision_base + bono_extra + bono_primer_lugar
                         
                         st.metric("Mi Facturación Total", f"${tot_v:,.2f}")
-                        m1, m2, m3 = st.columns(3)
+                        m1, m2, m3, m4 = st.columns(4)
                         m1.metric("Comisión Base (3%)", f"${comision_base:,.2f}")
                         m2.metric("Bono Extra", f"${bono_extra:,.2f}")
-                        m3.metric("Total a Recibir", f"${total_pagar:,.2f}")
+                        m3.metric("Premio 1er Lugar", f"${bono_primer_lugar:,.2f}")
+                        m4.metric("Total a Recibir", f"${total_pagar:,.2f}")
                         
                         st.divider()
                         st.markdown("##### Historial de mis ventas")
