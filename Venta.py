@@ -500,7 +500,7 @@ else:
                         st.download_button(
                             label="📥 Descargar Ticket (TXT)",
                             data=st.session_state.ultimo_ticket,
-                            file_name=f"Ticket_TenisRey_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                            file_name=f"Ticket_SportKing_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
                             mime="text/plain",
                             use_container_width=True
                         )
@@ -826,7 +826,7 @@ else:
                                 st.link_button("🟢 Enviar WhatsApp Web", link_wa, use_container_width=True)
                             
                             if "@" in num_correo and "." in num_correo:
-                                link_mail = f"mailto:{num_correo}?subject=Seguimiento%20Tenis%20Rey&body={msg_pred.replace(' ', '%20')}"
+                                link_mail = f"mailto:{num_correo}?subject=Seguimiento%20Sport%20King&body={msg_pred.replace(' ', '%20')}"
                                 st.link_button("📧 Redactar Correo Electrónico", link_mail, use_container_width=True)
                         
                         elif accion_crm == "Editar":
