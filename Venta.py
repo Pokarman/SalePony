@@ -233,7 +233,7 @@ else:
     df_crm = cargar_csv(ARCHIVO_CRM, ['Tipo', 'Nombre', 'Contacto', 'Mensaje_Nota', 'Fecha'])
     
     if df_crm.empty:
-        df_crm = pd.DataFrame([{'Tipo': 'Proveedor', 'Nombre': 'Alan (Soporte Técnico)', 'Contacto': '6676562718 / alanbdb64@gmail.com', 'Mensaje_Nota': 'Contacto principal del sistema.', 'Fecha': datetime.now().strftime("%Y-%m-%d")}])
+        df_crm = pd.DataFrame([{'Tipo': 'Proveedor', 'Nombre': 'Ing. Alan Pizarro(Soporte Técnico)', 'Contacto': '5576562718 / alanbdb64@gmail.com', 'Mensaje_Nota': 'Contacto principal del sistema.', 'Fecha': datetime.now().strftime("%Y-%m-%d")}])
         guardar_df(df_crm, ARCHIVO_CRM)
     
     # --- BARRA LATERAL ---
@@ -514,7 +514,7 @@ else:
                 with st.form("adm", clear_on_submit=(act=="Registro Nuevo")):
                     st.markdown("##### Especificaciones Técnicas (Tenis/Ropa)")
                     c1, c2 = st.columns(2)
-                    f_sku = c1.text_input("Código de Barras / SKU", d_sku, disabled=(act == "Ajuste de Existencias"))
+                    f_sku = c1.text_input("Código de Barras / SKU", d_sku, disabled=(act in ["Modificar Datos", "Ajuste de Existencias"]))
                     f_mod = c2.text_input("Descripción Comercial", d_mod, disabled=(act=="Ajuste de Existencias"))
                     
                     c3, c_talla, c_gen = st.columns(3)
