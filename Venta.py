@@ -7,8 +7,10 @@ import uuid
 import hashlib
 import re
 import smtplib 
+import urllib.parse
 from email.mime.text import MIMEText 
 from email.mime.multipart import MIMEMultipart 
+from email.mime.image import MIMEImage
 from datetime import datetime, timedelta
 
 # ==========================================
@@ -95,13 +97,38 @@ if 'sesion_iniciada' not in st.session_state:
     if 'contador_soporte' not in st.session_state: st.session_state.contador_soporte = 0
 
 def enviar_correo_soporte(mensaje, adjunto=None):
+    try:
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login("alanbdb64@gmail.com", "dxah wqco wygs bjgk".replace(" ", ""))
         msg = MIMEMultipart()
         msg['Subject'] = f"🚨 Alerta de Sistema (Tenis Rey) - {datetime.now().strftime('%H:%M')}"
         msg.attach(MIMEText(f"Usuario reporta: {st.session_state.nombre_usuario}\n\nDetalle de la incidencia:\n{mensaje}", 'plain'))
+        
+        if adjunto is not None:
+            img_data = adjunto.read()
+            imagen = MIMEImage(img_data, name=adjunto.name)
+            msg.attach(imagen)
+
         server.sendmail("alanbdb64@gmail.com", "alanbdb64@gmail.com", msg.as_string())
+        server.quit()
+        return True
+    except: return False
+
+def enviar_ticket_correo(correo_destino, ticket_texto):
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login("alanbdb64@gmail.com", "dxah wqco wygs bjgk".replace(" ", ""))
+        msg = MIMEMultipart()
+        msg['Subject'] = f"🧾 Ticket de Compra - Tenis Rey"
+        msg['From'] = "Tenis Rey Tienda"
+        msg['To'] = correo_destino
+        
+        body = f"Hola,\n\nGracias por tu preferencia y por caminar con nosotros. Aquí tienes tu comprobante de compra:\n\n{ticket_texto}\n\n¡Vuelve pronto!"
+        msg.attach(MIMEText(body, 'plain'))
+        
+        server.sendmail("alanbdb64@gmail.com", correo_destino, msg.as_string())
         server.quit()
         return True
     except: return False
@@ -114,6 +141,8 @@ def cargar_csv(archivo, columnas):
         if df.empty: return pd.DataFrame(columns=columnas)
         for col in columnas:
             if col not in df.columns: df[col] = 0.0 if "Precio" in col or "Costo" in col or "Cantidad" in col or "Minimo" in col else ""
+        # Rellenar NaN para evitar que se muestren como texto "nan"
+        df = df.fillna('')
         return df
     except: return pd.DataFrame(columns=columnas)
 
@@ -316,12 +345,20 @@ else:
         with st.expander("🛠️ Reportar Incidencia", expanded=False):
             key_din = f"txt_soporte_{st.session_state.contador_soporte}"
             msg_err = st.text_area("Describa el error del sistema:", key=key_din)
+            archivo_adjunto = st.file_uploader("Adjuntar captura de pantalla (Opcional)", type=['png', 'jpg', 'jpeg'], key=f"adjunto_{st.session_state.contador_soporte}")
+            
             if st.button("Enviar Ticket de Soporte"):
-                if msg_err and enviar_correo_soporte(msg_err):
-                    st.success("Ticket enviado al administrador.")
-                    st.session_state.contador_soporte += 1
-                    time.sleep(1)
-                    st.rerun()
+                if msg_err:
+                    with st.spinner("Enviando reporte..."):
+                        if enviar_correo_soporte(msg_err, archivo_adjunto):
+                            st.success("Ticket enviado al administrador.")
+                            st.session_state.contador_soporte += 1
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error("Hubo un error al enviar el reporte. Verifique la conexión.")
+                else:
+                    st.warning("Debe describir el error para poder enviarlo.")
 
         if st.button("Cerrar Sesión"):
             st.session_state.sesion_iniciada = False
@@ -398,7 +435,7 @@ else:
                     if not fn.empty: sel = fn.iloc[0]
             
             if sel is None and not df_inv.empty:
-                op = df_inv[df_inv['Cantidad']>0].apply(lambda x: f"{x['Modelo']} (Talla: {x.get('Talla','')}) | {x['SKU']}", axis=1)
+                op = df_inv[df_inv['Cantidad']>0].apply(lambda x: f"{x['Modelo']} (Talla: {x['Talla'] if str(x['Talla']) != '' else 'Única'}) | {x['SKU']}", axis=1)
                 s = st.selectbox("Selección desde Catálogo:", op, index=None, placeholder="Elija un producto...", label_visibility="collapsed")
                 if s: sel = df_inv[df_inv['SKU'] == s.split(" | ")[1]].iloc[0]
             
