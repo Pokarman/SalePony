@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 # ==========================================
 # 1. CONFIGURACIÓN VISUAL "TENIS REY SPORT"
 # ==========================================
-st.set_page_config(page_title="Tenis Rey Elite", page_icon="👑", layout="wide")
+st.set_page_config(page_title="Tenis Rey", page_icon="👑", layout="wide")
 
 # CSS INTELIGENTE: Diseño responsivo, deportivo y agresivo (Rojo/Negro/Blanco)
 st.markdown("""
@@ -128,7 +128,7 @@ def sanitizar_texto(texto):
 def cargar_usuarios():
     if not os.path.exists(ARCHIVO_USUARIOS):
         usuarios_defecto = [
-            {'Usuario': 'admin', 'Clave': hash_password('admin123'), 'Rol': 'Administrador', 'Nombre': 'CEO Tenis Rey'},
+            {'Usuario': 'admin', 'Clave': hash_password('admin123'), 'Rol': 'Administrador', 'Nombre': 'Tenis Rey'},
             {'Usuario': 'vendedor', 'Clave': hash_password('ven123'), 'Rol': 'Vendedor', 'Nombre': 'Asesor de Ventas'}
         ]
         df = pd.DataFrame(usuarios_defecto)
