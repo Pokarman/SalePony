@@ -264,13 +264,14 @@ def guardar_df(df, archivo):
         st.cache_data.clear()
     except: pass
 
-def registrar_historial(accion, sku, modelo, cant, precio=0, costo=0, notas="", metodo_pago="Efectivo"):
+def registrar_historial(accion, sku, modelo, cant, precio=0, costo=0, notas="", metodo_pago="Efectivo", descuento=0.0):
     nuevo = {
         'Fecha': datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'Usuario': st.session_state.nombre_usuario,
         'Accion': accion, 'SKU': sku, 'Modelo': modelo, 'Cantidad': cant,
         'Monto_Venta': float(precio)*int(cant) if "VENTA" in accion else 0,
         'Costo_Venta': float(costo)*int(cant) if "VENTA" in accion else 0,
         'Monto_Gasto': float(costo)*int(cant) if "ALTA" in accion or "ENTRADA" in accion else 0,
+        'Descuento': float(descuento)*int(cant),
         'Notas': notas, 'Metodo_Pago': metodo_pago 
     }
     df_h = pd.DataFrame([nuevo])
@@ -285,9 +286,12 @@ def generar_ticket(carrito_items, total, user, metodo_pago="Efectivo", pago_clie
     items_str = ""
     items_html = ""
     for item in carrito_items:
+        desc_str = f" (-${item.get('Descuento_Unitario', 0.0):.2f})" if item.get('Descuento_Unitario', 0.0) > 0 else ""
         items_str += f" {str(item['Cantidad']).center(4)} | {item['Modelo'][:19]:<19} | ${item['Subtotal']:,.2f}\n"
-        items_str += f" SKU: {item['SKU']}\n"
-        items_html += f"<tr><td style='padding: 5px 0; border-bottom: 1px dashed #ccc;'>{item['Cantidad']}x</td><td style='padding: 5px 0; border-bottom: 1px dashed #ccc;'>{item['Modelo']}<br><small style='color: #666;'>SKU: {item['SKU']}</small></td><td style='text-align: right; padding: 5px 0; border-bottom: 1px dashed #ccc;'>${item['Subtotal']:,.2f}</td></tr>"
+        items_str += f" SKU: {item['SKU']}{desc_str}\n"
+        
+        desc_html = f"<br><small style='color: #8e0e0e;'>Ahorro: ${item.get('Descuento_Unitario', 0.0):,.2f}/ud</small>" if item.get('Descuento_Unitario', 0.0) > 0 else ""
+        items_html += f"<tr><td style='padding: 5px 0; border-bottom: 1px dashed #ccc;'>{item['Cantidad']}x</td><td style='padding: 5px 0; border-bottom: 1px dashed #ccc;'>{item['Modelo']}<br><small style='color: #666;'>SKU: {item['SKU']}</small>{desc_html}</td><td style='text-align: right; padding: 5px 0; border-bottom: 1px dashed #ccc;'>${item['Subtotal']:,.2f}</td></tr>"
 
     pago_html = ""
     if metodo_pago == "Efectivo":
@@ -361,6 +365,7 @@ def calc_stats():
     except: return None, None, pd.DataFrame()
     if 'Monto_Gasto' not in df.columns: df['Monto_Gasto'] = 0.0
     if 'Metodo_Pago' not in df.columns: df['Metodo_Pago'] = "Efectivo"
+    if 'Descuento' not in df.columns: df['Descuento'] = 0.0
     return df, None, df
 
 # ==========================================
@@ -664,17 +669,40 @@ else:
                 if stock_real > 0:
                     cq, cp = st.columns(2)
                     q = cq.number_input("Cantidad a añadir", 1, stock_real, 1)
-                    tot_item = sel['Precio_Venta'] * q
+                    
+                    precio_final = float(sel['Precio_Venta'])
+                    descuento_unitario = 0.0
+                    
+                    usar_descuento = st.checkbox("🔑 Autorizar Descuento Especial")
+                    if usar_descuento:
+                        col_desc1, col_desc2 = st.columns(2)
+                        precio_especial = col_desc1.number_input("Nuevo Precio Final ($)", min_value=float(sel['Costo_Unitario']), value=float(sel['Precio_Venta']), max_value=float(sel['Precio_Venta']), step=50.0)
+                        codigo_auth = col_desc2.text_input("Código de Autorización (2FA de Admin)", type="password")
+
+                    tot_item = precio_final * q if not usar_descuento else precio_especial * q
                     cp.metric("Subtotal Artículo", f"${tot_item:,.2f}")
                     
                     if st.button("🛒 AÑADIR AL CARRITO", use_container_width=True):
+                        if usar_descuento and precio_especial < sel['Precio_Venta']:
+                            df_usrs = cargar_usuarios()
+                            admin_secrets = df_usrs[df_usrs['Rol'] == 'Administrador']['2FA_Secret'].tolist()
+                            autorizado = any(pyotp.TOTP(secret).verify(codigo_auth) for secret in admin_secrets)
+                            
+                            if not autorizado:
+                                st.error("Código de autorización 2FA inválido. Solicite el código a un Administrador.")
+                                st.stop()
+                            else:
+                                precio_final = precio_especial
+                                descuento_unitario = float(sel['Precio_Venta']) - precio_especial
+
                         st.session_state.carrito.append({
                             'SKU': sel['SKU'],
                             'Modelo': sel['Modelo'],
                             'Cantidad': q,
-                            'Precio_Venta': sel['Precio_Venta'],
+                            'Precio_Venta': precio_final,
                             'Costo_Unitario': sel['Costo_Unitario'],
-                            'Subtotal': tot_item
+                            'Subtotal': tot_item,
+                            'Descuento_Unitario': descuento_unitario
                         })
                         st.session_state.busqueda_manual = "" 
                         st.success(f"{q}x {sel['Modelo']} añadido al carrito.")
@@ -769,7 +797,7 @@ else:
                     for item in st.session_state.carrito:
                         idx_inv = df_inv[df_inv['SKU']==item['SKU']].index[0]
                         df_inv.at[idx_inv, 'Cantidad'] -= item['Cantidad']
-                        registrar_historial("VENTA", item['SKU'], item['Modelo'], item['Cantidad'], item['Precio_Venta'], item['Costo_Unitario'], "Venta Múltiple TPV", metodo)
+                        registrar_historial("VENTA", item['SKU'], item['Modelo'], item['Cantidad'], item['Precio_Venta'], item['Costo_Unitario'], "Venta Múltiple TPV", metodo, item.get('Descuento_Unitario', 0.0))
                         
                     guardar_df(df_inv, ARCHIVO_INVENTARIO)
                     txt_ticket, html_ticket = generar_ticket(st.session_state.carrito, tot_carrito, st.session_state.nombre_usuario, metodo, pago_cliente, cambio)
@@ -822,13 +850,53 @@ else:
 
         with c_remate:
             if st.session_state.rol_usuario == "Administrador":
-                st.markdown("#### 🚨 Alerta de Remates")
+                st.markdown("#### 🚨 Alerta de Remates (Alto Stock)")
                 remates = df_inv[(df_inv['Cantidad'] >= 5)]
                 if not remates.empty:
-                    st.warning("Artículos sugeridos para liquidación (Alto Stock):")
                     for _, rem in remates.iterrows():
                         st.write(f"🔻 **{rem['Modelo']}** (Quedan {rem['Cantidad']}) - Sugerido: **${float(rem['Costo_Unitario'])*1.1:,.2f}**")
-                else: st.success("Inventario rotando bien. Sin estancamientos.")
+                else: st.success("Inventario rotando bien. Sin alto stock.")
+                
+                st.markdown("#### 🧠 Inteligencia: Mercancía Rezagada (>5 meses)")
+                if df_full is not None and not df_full.empty:
+                    ventas = df_full[df_full['Accion'].str.contains('VENTA', na=False)]
+                    ultimas_ventas = ventas.groupby('SKU')['Fecha_Dt'].max().reset_index() if not ventas.empty else pd.DataFrame(columns=['SKU', 'Fecha_Dt'])
+                    
+                    entradas = df_full[df_full['Accion'] == 'ENTRADA_INV']
+                    primeras_entradas = entradas.groupby('SKU')['Fecha_Dt'].min().reset_index() if not entradas.empty else pd.DataFrame(columns=['SKU', 'Fecha_Dt'])
+                    primeras_entradas.rename(columns={'Fecha_Dt': 'Fecha_Entrada'}, inplace=True)
+                    
+                    inv_promo = df_inv[df_inv['Cantidad'] > 0].copy()
+                    if not ultimas_ventas.empty:
+                        inv_promo = pd.merge(inv_promo, ultimas_ventas, on='SKU', how='left')
+                    else:
+                        inv_promo['Fecha_Dt'] = pd.NaT
+                        
+                    if not primeras_entradas.empty:
+                        inv_promo = pd.merge(inv_promo, primeras_entradas, on='SKU', how='left')
+                    else:
+                        inv_promo['Fecha_Entrada'] = pd.NaT
+                    
+                    cinco_meses_atras = pd.Timestamp.now() - pd.DateOffset(months=5)
+                    
+                    cond_venta_vieja = inv_promo['Fecha_Dt'] < cinco_meses_atras
+                    cond_entrada_vieja = (inv_promo['Fecha_Dt'].isna()) & (inv_promo['Fecha_Entrada'] < cinco_meses_atras)
+                    
+                    rezagados = inv_promo[cond_venta_vieja | cond_entrada_vieja]
+                    
+                    if not rezagados.empty:
+                        st.warning("⚠️ Artículos sin ventas recientes. Sugerencia de descuento:")
+                        for _, r in rezagados.iterrows():
+                            desc = float(r['Precio_Venta']) * 0.8 
+                            margen = desc - float(r['Costo_Unitario'])
+                            if margen > 0:
+                                st.write(f"📉 **{r['Modelo']}** - 20% Off: **${desc:,.2f}** (Ganas ${margen:,.2f})")
+                            else:
+                                st.write(f"📉 **{r['Modelo']}** - Remate: **${float(r['Costo_Unitario'])*1.05:,.2f}** (Costo + 5%)")
+                    else:
+                        st.success("✅ Excelente rotación. Sin mercancía rezagada.")
+                else:
+                    st.info("Se requiere historial de transacciones para analizar la rotación de mercancía.")
 
     # 4. ADMINISTRACIÓN DE CATÁLOGO
     if t_adm:
@@ -959,27 +1027,29 @@ else:
                     if not vs.empty:
                         tot_v = vs['Monto_Venta'].sum()
                         tot_c = vs['Costo_Venta'].sum() 
+                        tot_d = vs['Descuento'].sum()
                         bruta = tot_v - tot_c
                         gastos_variables = tot_v * (imp_pct + com_pct)
                         neta = bruta - gastos_variables
                         num_transacciones = len(vs)
                         ticket_promedio = tot_v / num_transacciones if num_transacciones > 0 else 0
                         
-                        m1, m2, m3 = st.columns(3)
+                        m1, m2, m3, m4 = st.columns(4)
                         m1.metric("Facturación Total", f"${tot_v:,.2f}")
                         m2.metric("CMV", f"-${tot_c:,.2f}")
-                        m3.metric("Utilidad Bruta", f"${bruta:,.2f}")
+                        m3.metric("Descuentos Autorizados", f"-${tot_d:,.2f}")
+                        m4.metric("Utilidad Bruta", f"${bruta:,.2f}")
                         
-                        m4, m5, m6 = st.columns(3)
-                        m4.metric("Deducciones", f"-${gastos_variables:,.2f}")
-                        m5.metric("Utilidad Neta", f"${neta:,.2f}")
-                        m6.metric("Margen Neto (%)", f"{(neta/tot_v)*100:.2f}%" if tot_v > 0 else "0.00%")
+                        m5, m6, m7, _ = st.columns(4)
+                        m5.metric("Deducciones", f"-${gastos_variables:,.2f}")
+                        m6.metric("Utilidad Neta", f"${neta:,.2f}")
+                        m7.metric("Margen Neto (%)", f"{(neta/tot_v)*100:.2f}%" if tot_v > 0 else "0.00%")
                         st.info(f"💡 Se han realizado **{num_transacciones}** ventas. Ticket promedio: **${ticket_promedio:,.2f}**.")
                     
                     st.divider()
                     st.markdown("##### Rendimiento por Asesor y Bonos")
                     if not vs.empty:
-                        com = vs.groupby('Usuario')['Monto_Venta'].sum().reset_index()
+                        com = vs.groupby('Usuario').agg({'Monto_Venta': 'sum', 'Descuento': 'sum'}).reset_index()
                         
                         # --- NUEVO: TOP VENDEDOR ---
                         st.markdown("###### 🏆 Reconocimiento al Mejor Vendedor")
@@ -1002,7 +1072,7 @@ else:
                         com['Premio 1er Lugar'] = com['Usuario'].apply(lambda x: bono_top if x == top_vendedor['Usuario'] else 0.0)
                         com['Total a Pagar'] = com['Comisión Base (3%)'] + com['Bono Extra'] + com['Premio 1er Lugar']
                         
-                        st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Comisión Base (3%)': '${:,.2f}', 'Bono Extra': '${:,.2f}', 'Premio 1er Lugar': '${:,.2f}', 'Total a Pagar': '${:,.2f}'}), use_container_width=True)
+                        st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Descuento': '${:,.2f}', 'Comisión Base (3%)': '${:,.2f}', 'Bono Extra': '${:,.2f}', 'Premio 1er Lugar': '${:,.2f}', 'Total a Pagar': '${:,.2f}'}), use_container_width=True)
             else:
                 st.markdown("#### Mis Ventas y Progreso de Bonos")
                 if df_full is not None and not df_full.empty:
@@ -1015,6 +1085,7 @@ else:
                     vs = df_full[(df_full['Accion'].str.contains('VENTA')) & (df_full['Usuario'] == st.session_state.nombre_usuario)]
                     if not vs.empty:
                         tot_v = vs['Monto_Venta'].sum()
+                        tot_d = vs['Descuento'].sum()
                         
                         if st.session_state.nombre_usuario == top_user:
                             st.success("🏆 ¡Felicidades! Actualmente eres el VENDEDOR #1. ¡Mantén el ritmo para llevarte el bono especial!")
@@ -1034,10 +1105,11 @@ else:
                         m2.metric("Bono Extra", f"${bono_extra:,.2f}")
                         m3.metric("Premio 1er Lugar", f"${bono_primer_lugar:,.2f}")
                         m4.metric("Total a Recibir", f"${total_pagar:,.2f}")
+                        st.info(f"Has otorgado **${tot_d:,.2f}** en descuentos autorizados.")
                         
                         st.divider()
                         st.markdown("##### Historial de mis ventas")
-                        st.dataframe(vs[['Fecha', 'Modelo', 'Cantidad', 'Monto_Venta', 'Metodo_Pago']], hide_index=True, use_container_width=True)
+                        st.dataframe(vs[['Fecha', 'Modelo', 'Cantidad', 'Monto_Venta', 'Descuento', 'Metodo_Pago']], hide_index=True, use_container_width=True)
                     else:
                         st.info("Aún no tienes ventas registradas en el sistema.")
 
