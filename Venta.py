@@ -10,118 +10,108 @@ import smtplib
 import urllib.parse
 import base64
 import streamlit.components.v1 as components
-import pyotp # NUEVO: Librería para Microsoft Authenticator (2FA)
+import pyotp 
 from email.mime.text import MIMEText 
 from email.mime.multipart import MIMEMultipart 
 from email.mime.image import MIMEImage
 from datetime import datetime, timedelta
 
 # ==========================================
-# 1. CONFIGURACIÓN VISUAL "ELITE" (RESPONSIVA)
+# 1. CONFIGURACIÓN VISUAL CORPORATIVA (MEJORADA)
 # ==========================================
-st.set_page_config(page_title="SportKing | POS", page_icon="👑", layout="wide")
+st.set_page_config(page_title="SportKing | Sport", page_icon="👟", layout="wide")
 
-# CSS: Diseño adaptable (Modo Claro/Oscuro), colores Negro, Blanco y Dorado
 st.markdown("""
     <style>
-    /* FUENTE ELEGANTE Y MODERNA */
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
-    /* TÍTULOS CON DEGRADADO DORADO */
-    h1, h2, h3 {
-        background: linear-gradient(to right, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
+    h1, h2, h3 { 
+        background: linear-gradient(135deg, #FF1744 0%, #B71C1C 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-weight: 700 !important;
-        letter-spacing: 0.5px;
+        font-weight: 800 !important; 
+        letter-spacing: -0.5px; 
     }
 
-    /* TARJETAS DE MÉTRICAS (Glassmorphism sutil adaptable) */
-    div[data-testid="stMetric"] {
-        background-color: var(--secondary-background-color);
-        border: 1px solid rgba(128, 128, 128, 0.15);
-        border-left: 4px solid #C5A059;
-        border-radius: 12px;
-        padding: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    div[data-testid="stMetric"] { 
+        background: linear-gradient(145deg, var(--secondary-background-color), rgba(183, 28, 28, 0.03));
+        border: 1px solid rgba(183, 28, 28, 0.2); 
+        border-left: 5px solid #FF1744; 
+        border-radius: 12px; 
+        padding: 20px; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+        transition: all 0.3s ease-in-out;
     }
     div[data-testid="stMetric"]:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 20px rgba(197, 160, 89, 0.2);
-        border-left: 4px solid #D4AF37;
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(255, 23, 68, 0.15);
+        border-left: 5px solid #D50000;
     }
-    div[data-testid="stMetricLabel"] { color: var(--text-color) !important; opacity: 0.7; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;}
-    div[data-testid="stMetricValue"] { color: var(--text-color) !important; font-weight: 700; }
+    div[data-testid="stMetricLabel"] { color: var(--text-color) !important; opacity: 0.7; font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; }
+    div[data-testid="stMetricValue"] { color: var(--text-color) !important; font-weight: 800; font-size: 2rem; }
 
-    /* INPUTS Y SELECTBOXES (Adaptables a Dark/Light Mode) */
-    .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div, .stTextArea textarea {
-        background-color: var(--secondary-background-color) !important;
-        color: var(--text-color) !important;
-        border: 1px solid rgba(128, 128, 128, 0.2) !important;
-        border-radius: 8px !important;
+    .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div, .stTextArea textarea { 
+        background-color: var(--secondary-background-color) !important; 
+        color: var(--text-color) !important; 
+        border: 1px solid rgba(128, 128, 128, 0.2) !important; 
+        border-radius: 8px !important; 
         transition: all 0.3s ease;
     }
-    .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
-        border-color: #C5A059 !important;
-        box-shadow: 0 0 0 2px rgba(197, 160, 89, 0.3) !important;
+    .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus, .stSelectbox div[data-baseweb="select"] > div:focus-within { 
+        border-color: #FF1744 !important; 
+        box-shadow: 0 0 0 2px rgba(255, 23, 68, 0.2) !important; 
     }
     div[data-baseweb="select"] span { color: var(--text-color) !important; }
 
-    /* BOTONES PRIMARIOS (Negro mate y Dorado) */
-    div.stButton > button {
-        width: 100%;
-        background: linear-gradient(135deg, #111111 0%, #222222 100%);
-        color: #D4AF37 !important;
-        font-weight: 600;
-        border: 1px solid #C5A059;
-        border-radius: 8px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    div.stButton > button { 
+        width: 100%; 
+        background: linear-gradient(135deg, #D50000 0%, #B71C1C 100%); 
+        color: #ffffff !important; 
+        font-weight: 700; 
+        border: none; 
+        border-radius: 8px; 
+        padding: 0.5rem 1rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        box-shadow: 0 4px 6px rgba(183, 28, 28, 0.2);
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
     }
-    /* Inversión en modo claro para que los botones destaquen */
-    @media (prefers-color-scheme: light) {
-        div.stButton > button {
-            background: linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%);
-            color: #b38728 !important;
-        }
-    }
-    div.stButton > button:hover {
-        background: #C5A059;
-        border-color: #C5A059;
-        color: #ffffff !important;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(197, 160, 89, 0.4);
+    div.stButton > button:hover { 
+        background: linear-gradient(135deg, #FF1744 0%, #D50000 100%); 
+        transform: translateY(-2px) scale(1.01); 
+        box-shadow: 0 8px 20px rgba(255, 23, 68, 0.4); 
     }
     div.stButton > button:active {
-        transform: translateY(1px);
+        transform: translateY(1px) scale(0.98);
     }
 
-    /* LOGIN CARD */
-    .login-card {
-        background-color: var(--secondary-background-color);
-        padding: 3rem;
-        border-radius: 16px;
-        border: 1px solid rgba(197, 160, 89, 0.3);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        text-align: center;
-        transition: all 0.3s ease;
-    }
-    .login-card:hover {
-        box-shadow: 0 15px 40px rgba(197, 160, 89, 0.15);
+    .login-card { 
+        background: var(--secondary-background-color); 
+        padding: 3rem; 
+        border-radius: 16px; 
+        border: 1px solid rgba(255, 23, 68, 0.15); 
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1), 0 0 20px rgba(255, 23, 68, 0.05); 
+        text-align: center; 
+        backdrop-filter: blur(10px);
     }
     
-    /* PESTAÑAS (TABS) */
-    .stTabs [data-baseweb="tab-list"] { border-bottom: 2px solid rgba(128,128,128,0.1); gap: 10px;}
-    .stTabs [data-baseweb="tab-list"] button { transition: all 0.3s ease; }
-    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
-        background-color: rgba(197, 160, 89, 0.1);
-        border-bottom: 3px solid #C5A059;
-        color: #C5A059 !important;
-        font-weight: 700;
-        border-radius: 4px 4px 0 0;
+    .stTabs [data-baseweb="tab-list"] { 
+        border-bottom: 2px solid rgba(128,128,128,0.1); 
+        gap: 20px;
+    }
+    .stTabs [data-baseweb="tab-list"] button {
+        padding-bottom: 10px !important;
+        transition: color 0.3s ease;
+    }
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] { 
+        background-color: transparent; 
+        border-bottom: 3px solid #FF1744; 
+        color: #FF1744 !important; 
+        font-weight: 700; 
+    }
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="false"]:hover {
+        color: #D50000 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -133,6 +123,7 @@ ARCHIVO_USUARIOS = 'tr_usuarios.csv'
 ARCHIVO_CONFIG_API = 'tr_config_apis.csv'
 ARCHIVO_CRM = 'tr_crm.csv' 
 ARCHIVO_INBOX = 'tr_inbox.csv'
+ARCHIVO_CUPONES = 'tr_cupones.csv' 
 
 # ==========================================
 # 2. SEGURIDAD Y DATOS
@@ -150,21 +141,20 @@ def image_to_base64(image_file):
     return ""
 
 def cargar_usuarios():
-    # NUEVO: Generación de base de datos con secretos 2FA
+    # CLAVES FIJAS PARA EVITAR REINICIOS
     if not os.path.exists(ARCHIVO_USUARIOS):
         usuarios_defecto = [
-            {'Usuario': 'admin', 'Clave': hash_password('admin123'), 'Rol': 'Administrador', 'Nombre': 'Gerente SportKing', '2FA_Secret': pyotp.random_base32()},
-            {'Usuario': 'cajero1', 'Clave': hash_password('caja1'), 'Rol': 'Vendedor', 'Nombre': 'Cajero Uno', '2FA_Secret': pyotp.random_base32()},
-            {'Usuario': 'cajero2', 'Clave': hash_password('caja2'), 'Rol': 'Vendedor', 'Nombre': 'Cajero Dos', '2FA_Secret': pyotp.random_base32()}
+            {'Usuario': 'admin', 'Clave': hash_password('admin123'), 'Rol': 'Administrador', 'Nombre': 'Gerencia SportKing', '2FA_Secret': 'JBSWY3DPEHPK3PXP'},
+            {'Usuario': 'cajero1', 'Clave': hash_password('caja1'), 'Rol': 'Vendedor', 'Nombre': 'Cajero Uno', '2FA_Secret': 'K5ZWK4DPEHPK3PXP'},
+            {'Usuario': 'cajero2', 'Clave': hash_password('caja2'), 'Rol': 'Vendedor', 'Nombre': 'Cajero Dos', '2FA_Secret': 'M5ZWK4DPEHPK3PXP'}
         ]
         df = pd.DataFrame(usuarios_defecto)
         df.to_csv(ARCHIVO_USUARIOS, index=False)
         return df
     
     df = pd.read_csv(ARCHIVO_USUARIOS)
-    # Soporte hacia atrás si el archivo ya existe pero no tiene seguridad 2FA
     if '2FA_Secret' not in df.columns:
-        df['2FA_Secret'] = [pyotp.random_base32() for _ in range(len(df))]
+        df['2FA_Secret'] = ['JBSWY3DPEHPK3PXP' for _ in range(len(df))]
         df.to_csv(ARCHIVO_USUARIOS, index=False)
     return df
 
@@ -185,7 +175,6 @@ if 'sesion_iniciada' not in st.session_state:
     st.session_state.carrito = []
     if 'contador_soporte' not in st.session_state: st.session_state.contador_soporte = 0
     if 'busqueda_manual' not in st.session_state: st.session_state.busqueda_manual = "" 
-    # NUEVO: Estados para Autenticación en 2 Pasos
     if 'login_step' not in st.session_state: st.session_state.login_step = 0
     if 'temp_user_data' not in st.session_state: st.session_state.temp_user_data = None
 
@@ -196,8 +185,6 @@ def enviar_correo_soporte(mensaje, adjunto=None):
         server.login("alanbdb64@gmail.com", "dxah wqco wygs bjgk".replace(" ", ""))
         msg = MIMEMultipart()
         msg['Subject'] = f"🚨 Alerta de Sistema (SportKing) - {datetime.now().strftime('%H:%M')}"
-        
-        # Ajuste dinámico de quién reporta (por si es desde el Login "Olvidé Contraseña")
         nom_reporta = st.session_state.nombre_usuario if st.session_state.nombre_usuario else "Usuario del Sistema (Sin iniciar sesión)"
         msg.attach(MIMEText(f"Usuario reporta: {nom_reporta}\n\nDetalle de la incidencia:\n{mensaje}", 'plain'))
         
@@ -220,10 +207,8 @@ def enviar_ticket_correo(correo_destino, ticket_texto):
         msg['Subject'] = f"🧾 Ticket de Compra - SportKing"
         msg['From'] = "SportKing Tienda"
         msg['To'] = correo_destino
-        
         body = f"Hola,\n\nGracias por tu preferencia y por caminar con nosotros. Aquí tienes tu comprobante de compra:\n\n{ticket_texto}\n\n¡Vuelve pronto!"
         msg.attach(MIMEText(body, 'plain'))
-        
         server.sendmail("alanbdb64@gmail.com", correo_destino, msg.as_string())
         server.quit()
         return True
@@ -242,15 +227,30 @@ def cargar_csv(archivo, columnas):
     except: return pd.DataFrame(columns=columnas)
 
 def cargar_inventario():
-    cols = ['SKU', 'Categoria', 'Genero', 'Modelo', 'Talla', 'Tipo', 'Cantidad', 'Stock_Minimo', 'Costo_Unitario', 'Precio_Venta', 'Proveedor', 'Precio_ML', 'Precio_Amazon', 'Imagen_Base64']
+    cols = ['SKU', 'Categoria', 'Genero', 'Modelo', 'Talla', 'Tipo', 'Cantidad', 'Stock_Minimo', 'Costo_Unitario', 'Precio_Venta', 'Proveedor', 'Precio_ML', 'Precio_Amazon', 'Imagen_Base64', 'Fecha_Ingreso']
     df = cargar_csv(ARCHIVO_INVENTARIO, cols)
     if df.empty:
+        d_viejo_1 = (datetime.now() - timedelta(days=250)).strftime("%Y-%m-%d") 
+        d_viejo_2 = (datetime.now() - timedelta(days=220)).strftime("%Y-%m-%d") 
+        d_viejo_3 = (datetime.now() - timedelta(days=280)).strftime("%Y-%m-%d") 
+        d_nuevo = datetime.now().strftime("%Y-%m-%d") 
+        
         datos = [
-            {'SKU': 'NK-AJ1-RED-27', 'Categoria': 'Calzado', 'Genero': 'Hombre', 'Modelo': 'Nike Air Jordan 1 Rojo', 'Talla': '27', 'Tipo': 'Mayorista', 'Cantidad': 12, 'Stock_Minimo': 3, 'Costo_Unitario': 1200.0, 'Precio_Venta': 2500.0, 'Proveedor': 'Distribuidor Nacional', 'Precio_ML': 2800.0, 'Precio_Amazon': 2750.0, 'Imagen_Base64': ''},
-            {'SKU': 'AD-ULB-BLK-26', 'Categoria': 'Calzado', 'Genero': 'Mujer', 'Modelo': 'Adidas Ultraboost Negro', 'Talla': '26', 'Tipo': 'Mayorista', 'Cantidad': 8, 'Stock_Minimo': 2, 'Costo_Unitario': 1500.0, 'Precio_Venta': 3200.0, 'Proveedor': 'Importación Directa', 'Precio_ML': 3500.0, 'Precio_Amazon': 3400.0, 'Imagen_Base64': ''}
+            {'SKU': 'NK-AJ1-RED-27', 'Categoria': 'Calzado', 'Genero': 'Hombre', 'Modelo': 'Nike Air Jordan 1 Rojo (Nuevo)', 'Talla': '27', 'Tipo': 'Mayorista', 'Cantidad': 12, 'Stock_Minimo': 3, 'Costo_Unitario': 1200.0, 'Precio_Venta': 2500.0, 'Proveedor': 'Distribuidor Nacional', 'Precio_ML': 2800.0, 'Precio_Amazon': 2750.0, 'Imagen_Base64': '', 'Fecha_Ingreso': d_nuevo},
+            {'SKU': 'AD-ULB-BLK-26', 'Categoria': 'Calzado', 'Genero': 'Mujer', 'Modelo': 'Adidas Ultraboost Negro (Viejo)', 'Talla': '26', 'Tipo': 'Mayorista', 'Cantidad': 8, 'Stock_Minimo': 2, 'Costo_Unitario': 1500.0, 'Precio_Venta': 3200.0, 'Proveedor': 'Importación Directa', 'Precio_ML': 3500.0, 'Precio_Amazon': 3400.0, 'Imagen_Base64': '', 'Fecha_Ingreso': d_viejo_1},
+            {'SKU': 'PM-SUEDE-BLK-28', 'Categoria': 'Calzado', 'Genero': 'Hombre', 'Modelo': 'Puma Suede Clásico (Viejo)', 'Talla': '28', 'Tipo': 'Retail', 'Cantidad': 5, 'Stock_Minimo': 2, 'Costo_Unitario': 800.0, 'Precio_Venta': 1600.0, 'Proveedor': 'Nacional', 'Precio_ML': 1800.0, 'Precio_Amazon': 1750.0, 'Imagen_Base64': '', 'Fecha_Ingreso': d_viejo_2},
+            {'SKU': 'NK-AF1-WHT-24', 'Categoria': 'Calzado', 'Genero': 'Mujer', 'Modelo': 'Nike Air Force 1 Blanco (Viejo)', 'Talla': '24', 'Tipo': 'Mayorista', 'Cantidad': 10, 'Stock_Minimo': 3, 'Costo_Unitario': 1100.0, 'Precio_Venta': 2300.0, 'Proveedor': 'Nacional', 'Precio_ML': 2500.0, 'Precio_Amazon': 2450.0, 'Imagen_Base64': '', 'Fecha_Ingreso': d_viejo_3}
         ]
         df = pd.DataFrame(datos)
         df.to_csv(ARCHIVO_INVENTARIO, index=False)
+    return df
+
+def cargar_cupones():
+    cols = ['Codigo', 'Descuento_Pct', 'Activo']
+    df = cargar_csv(ARCHIVO_CUPONES, cols)
+    if df.empty:
+        df = pd.DataFrame([{'Codigo': 'BIENVENIDA10', 'Descuento_Pct': 10.0, 'Activo': 'Si'}])
+        df.to_csv(ARCHIVO_CUPONES, index=False)
     return df
 
 def guardar_df(df, archivo):
@@ -264,44 +264,52 @@ def guardar_df(df, archivo):
         st.cache_data.clear()
     except: pass
 
-def registrar_historial(accion, sku, modelo, cant, precio=0, costo=0, notas="", metodo_pago="Efectivo"):
+def registrar_historial(accion, sku, modelo, cant, precio=0, costo=0, notas="", metodo_pago="Efectivo", descuento=0.0):
     nuevo = {
         'Fecha': datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'Usuario': st.session_state.nombre_usuario,
         'Accion': accion, 'SKU': sku, 'Modelo': modelo, 'Cantidad': cant,
         'Monto_Venta': float(precio)*int(cant) if "VENTA" in accion else 0,
         'Costo_Venta': float(costo)*int(cant) if "VENTA" in accion else 0,
         'Monto_Gasto': float(costo)*int(cant) if "ALTA" in accion or "ENTRADA" in accion else 0,
+        'Descuento': float(descuento),
         'Notas': notas, 'Metodo_Pago': metodo_pago 
     }
     df_h = pd.DataFrame([nuevo])
     try: df_h.to_csv(ARCHIVO_HISTORIAL, mode='a', header=not os.path.exists(ARCHIVO_HISTORIAL), index=False); st.cache_data.clear()
     except: pass
 
-def generar_ticket(carrito_items, total, user, metodo_pago="Efectivo", pago_cliente=0.0, cambio=0.0):
+def generar_ticket(carrito_items, total, user, metodo_pago="Efectivo", pago_cliente=0.0, cambio=0.0, desc_global=0.0):
     pago_str = ""
+    if desc_global > 0:
+        pago_str += f"\n DESCUENTO CUPON: -${desc_global:,.2f}"
     if metodo_pago == "Efectivo":
-        pago_str = f"\n EFECTIVO RECIBIDO: ${pago_cliente:,.2f}\n CAMBIO ENTREGADO: ${cambio:,.2f}\n----------------------------------------"
+        pago_str += f"\n EFECTIVO RECIBIDO: ${pago_cliente:,.2f}\n CAMBIO ENTREGADO: ${cambio:,.2f}\n----------------------------------------"
         
     items_str = ""
     items_html = ""
     for item in carrito_items:
+        desc_str = f" (-${item.get('Descuento_Unitario', 0.0):.2f})" if item.get('Descuento_Unitario', 0.0) > 0 else ""
         items_str += f" {str(item['Cantidad']).center(4)} | {item['Modelo'][:19]:<19} | ${item['Subtotal']:,.2f}\n"
-        items_str += f" SKU: {item['SKU']}\n"
-        items_html += f"<tr><td style='padding: 5px 0; border-bottom: 1px dashed #ccc;'>{item['Cantidad']}x</td><td style='padding: 5px 0; border-bottom: 1px dashed #ccc;'>{item['Modelo']}<br><small style='color: #666;'>SKU: {item['SKU']}</small></td><td style='text-align: right; padding: 5px 0; border-bottom: 1px dashed #ccc;'>${item['Subtotal']:,.2f}</td></tr>"
+        items_str += f" SKU: {item['SKU']}{desc_str}\n"
+        
+        desc_html = f"<br><small style='color: #8e0e0e;'>Ahorro manual: -${item.get('Descuento_Unitario', 0.0):,.2f}/ud</small>" if item.get('Descuento_Unitario', 0.0) > 0 else ""
+        items_html += f"<tr><td style='padding: 5px 0; border-bottom: 1px dashed #ccc;'>{item['Cantidad']}x</td><td style='padding: 5px 0; border-bottom: 1px dashed #ccc;'>{item['Modelo']}<br><small style='color: #666;'>SKU: {item['SKU']}</small>{desc_html}</td><td style='text-align: right; padding: 5px 0; border-bottom: 1px dashed #ccc;'>${item['Subtotal']:,.2f}</td></tr>"
 
     pago_html = ""
+    if desc_global > 0:
+        pago_html += f"<tr><td colspan='2'>Cupón Descuento:</td><td style='text-align: right; color: red;'>-${desc_global:,.2f}</td></tr>"
     if metodo_pago == "Efectivo":
-        pago_html = f"<tr><td>Efectivo Recibido:</td><td colspan='2' style='text-align: right;'>${pago_cliente:,.2f}</td></tr><tr><td>Cambio:</td><td colspan='2' style='text-align: right;'>${cambio:,.2f}</td></tr>"
+        pago_html += f"<tr><td>Efectivo Recibido:</td><td colspan='2' style='text-align: right;'>${pago_cliente:,.2f}</td></tr><tr><td>Cambio:</td><td colspan='2' style='text-align: right;'>${cambio:,.2f}</td></tr>"
         
     ticket_txt = f"""
 ========================================
-          SPORTKING - SUCURSAL
+         SPORTKING - SUCURSAL
 ========================================
  Fecha:   {datetime.now().strftime("%d/%m/%Y %H:%M")}
  Cajero:  {user}
  Pago:    {metodo_pago}
 ----------------------------------------
- CANT | DESCRIPCION            | IMPORTE
+ CANT | DESCRIPCION             | IMPORTE
 ----------------------------------------
 {items_str}----------------------------------------
             TOTAL A PAGAR: ${total:,.2f}{pago_str}
@@ -333,7 +341,7 @@ def generar_ticket(carrito_items, total, user, metodo_pago="Efectivo", pago_clie
             <thead><tr><th>Cant</th><th>Descripción</th><th style="text-align:right;">Importe</th></tr></thead>
             <tbody>{items_html}</tbody>
         </table>
-        <div class="total">TOTAL: ${total:,.2f}</div>
+        <div class="total">TOTAL FINAL: ${total:,.2f}</div>
         <table style="margin-top: 5px; border-top: none;"><tbody>{pago_html}</tbody></table>
         <p>-----------------------------------</p>
         <p class="center" style="margin-top: 10px;">¡GRACIAS POR SU COMPRA!</p>
@@ -341,7 +349,6 @@ def generar_ticket(carrito_items, total, user, metodo_pago="Efectivo", pago_clie
         <script>window.onload = function() {{ window.print(); }}</script>
     </body></html>
     """
-
     return ticket_txt, ticket_html
 
 def sincronizar(df_inv):
@@ -361,6 +368,7 @@ def calc_stats():
     except: return None, None, pd.DataFrame()
     if 'Monto_Gasto' not in df.columns: df['Monto_Gasto'] = 0.0
     if 'Metodo_Pago' not in df.columns: df['Metodo_Pago'] = "Efectivo"
+    if 'Descuento' not in df.columns: df['Descuento'] = 0.0
     return df, None, df
 
 # ==========================================
@@ -373,13 +381,12 @@ if not st.session_state.sesion_iniciada:
         st.markdown("""
             <div class="login-card">
                 <h1 style='text-align: center; margin-bottom: 0;'>👟 SPORTKING</h1>
-                <p style='text-align: center; opacity: 0.8; font-weight: 600; color: #C5A059;'>Sport & Punto de Venta</p>
-                <hr style='border-color: rgba(197, 160, 89, 0.2);'>
+                <p style='text-align: center; opacity: 0.8; font-weight: 600; color: #B71C1C;'>Sport & Punto de Venta</p>
+                <hr style='border-color: rgba(255, 23, 68, 0.15);'>
             </div>
         """, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # NUEVO: Lógica de Login Dividida en 2 Pasos (2FA)
         if st.session_state.login_step == 0:
             with st.form("login"):
                 u = st.text_input("Identificador de Usuario", placeholder="Ingrese su usuario")
@@ -406,7 +413,6 @@ if not st.session_state.sesion_iniciada:
         elif st.session_state.login_step == 1:
             user_val = st.session_state.temp_user_data
             st.info("🔐 Autenticación en dos pasos requerida")
-            
             st.caption(f"Si es tu primera vez iniciando sesión, vincula esta clave secreta en **Microsoft Authenticator**: `{user_val['2FA_Secret']}`")
             
             with st.form("2fa_form"):
@@ -486,6 +492,23 @@ else:
                 else: st.warning(f"Diferencia en EFECTIVO detectada: ${diff:,.2f}")
 
         if st.session_state.rol_usuario == "Administrador":
+            with st.expander("👤 Gestión de Usuarios (Accesos)", expanded=False):
+                st.write("Restablece contraseñas de vendedores u otros administradores.")
+                df_usrs = cargar_usuarios()
+                with st.form("reset_pass_form"):
+                    usr_sel = st.selectbox("Seleccione un usuario", df_usrs['Usuario'].tolist())
+                    new_pw = st.text_input("Nueva contraseña", type="password")
+                    if st.form_submit_button("Actualizar Contraseña"):
+                        if new_pw.strip():
+                            idx = df_usrs[df_usrs['Usuario'] == usr_sel].index[0]
+                            df_usrs.at[idx, 'Clave'] = hash_password(new_pw)
+                            df_usrs.to_csv(ARCHIVO_USUARIOS, index=False)
+                            st.success(f"Clave actualizada para {usr_sel}.")
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error("La contraseña no puede estar vacía.")
+
             with st.expander("🔌 Integración E-commerce"):
                 ml_token_env = os.environ.get("ML_TOKEN", "")
                 st.text_input("API Key Mercado Libre", value=ml_token_env, type="password")
@@ -576,7 +599,6 @@ else:
                 with st.container():
                     c_img, c2, c3, c4 = st.columns([0.5, 3, 2, 1.5])
                     
-                    # Buscar imagen del producto
                     img_b64 = ""
                     f_inv = df_inv[df_inv['SKU'] == r['SKU']]
                     if not f_inv.empty: img_b64 = f_inv.iloc[0].get('Imagen_Base64', '')
@@ -634,10 +656,18 @@ else:
                     col_info1.markdown("<h1>👟</h1>", unsafe_allow_html=True)
                 
                 with col_info2:
-                    # Calcular stock real disponible considerando lo que ya está en el carrito
                     qty_in_cart = sum(item['Cantidad'] for item in st.session_state.carrito if item['SKU'] == sel['SKU'])
                     stock_real = int(df_inv.at[idx, 'Cantidad']) - qty_in_cart
                     stock_min = int(df_inv.at[idx, 'Stock_Minimo'])
+                    
+                    fecha_ingreso_str = sel.get('Fecha_Ingreso', '')
+                    if pd.isna(fecha_ingreso_str) or fecha_ingreso_str == '':
+                        fecha_ingreso_str = datetime.now().strftime("%Y-%m-%d")
+                    fecha_ing = pd.to_datetime(fecha_ingreso_str).date()
+                    dias_antiguedad = (datetime.now().date() - fecha_ing).days
+                    
+                    if dias_antiguedad > 210:
+                        st.error(f"🚨 **PRODUCTO REZAGADO (>7 meses).** Sugerencia: Aplicar descuento de liquidación.")
                     
                     if stock_real <= stock_min:
                         st.warning(f"⚠️ **{sel['Modelo']}** | Disponible: {stock_real} (Nivel Bajo)")
@@ -647,17 +677,41 @@ else:
                 if stock_real > 0:
                     cq, cp = st.columns(2)
                     q = cq.number_input("Cantidad a añadir", 1, stock_real, 1)
-                    tot_item = sel['Precio_Venta'] * q
+                    
+                    precio_final = float(sel['Precio_Venta'])
+                    descuento_unitario = 0.0
+                    
+                    usar_descuento = st.checkbox("🔑 Autorizar Descuento Especial Manual (Cualquier Artículo)")
+                    if usar_descuento:
+                        col_desc1, col_desc2 = st.columns(2)
+                        # SOLUCIÓN: min_value en 0.0 para permitir descuento libre a placer
+                        precio_especial = col_desc1.number_input("Nuevo Precio Final ($)", min_value=0.0, value=float(sel['Precio_Venta']), max_value=float(sel['Precio_Venta']), step=50.0)
+                        codigo_auth = col_desc2.text_input("Código de Autorización (2FA de Admin)", type="password")
+
+                    tot_item = precio_final * q if not usar_descuento else precio_especial * q
                     cp.metric("Subtotal Artículo", f"${tot_item:,.2f}")
                     
                     if st.button("🛒 AÑADIR AL CARRITO", use_container_width=True):
+                        if usar_descuento and precio_especial < sel['Precio_Venta']:
+                            df_usrs = cargar_usuarios()
+                            admin_secrets = df_usrs[df_usrs['Rol'] == 'Administrador']['2FA_Secret'].tolist()
+                            autorizado = any(pyotp.TOTP(secret).verify(codigo_auth) for secret in admin_secrets)
+                            
+                            if not autorizado:
+                                st.error("Código de autorización 2FA inválido. Solicite el código a un Administrador.")
+                                st.stop()
+                            else:
+                                precio_final = precio_especial
+                                descuento_unitario = float(sel['Precio_Venta']) - precio_especial
+
                         st.session_state.carrito.append({
                             'SKU': sel['SKU'],
                             'Modelo': sel['Modelo'],
                             'Cantidad': q,
-                            'Precio_Venta': sel['Precio_Venta'],
+                            'Precio_Venta': precio_final,
                             'Costo_Unitario': sel['Costo_Unitario'],
-                            'Subtotal': tot_item
+                            'Subtotal': tot_item,
+                            'Descuento_Unitario': descuento_unitario
                         })
                         st.session_state.busqueda_manual = "" 
                         st.success(f"{q}x {sel['Modelo']} añadido al carrito.")
@@ -686,7 +740,6 @@ else:
                                 use_container_width=True
                             )
                         with col_d2:
-                            # Inyección JS para imprimir HTML nativo
                             b64_html = base64.b64encode(st.session_state.ultimo_ticket_html.encode("utf-8")).decode("utf-8")
                             components.html(
                                 f"""
@@ -732,7 +785,26 @@ else:
                     st.rerun()
                     
                 tot_carrito = sum(item['Subtotal'] for item in st.session_state.carrito)
-                st.markdown(f"### Total: ${tot_carrito:,.2f}")
+                
+                # --- SISTEMA DE CUPONES ---
+                df_cupones = cargar_cupones()
+                cupon_input = st.text_input("🎟️ Código de Cupón (Opcional):", placeholder="Ingrese código aquí").upper()
+                descuento_cupon_pct = 0.0
+                if cupon_input:
+                    match_cupon = df_cupones[(df_cupones['Codigo'] == cupon_input) & (df_cupones['Activo'] == 'Si')]
+                    if not match_cupon.empty:
+                        descuento_cupon_pct = float(match_cupon.iloc[0]['Descuento_Pct'])
+                        st.success(f"Cupón aplicado: {descuento_cupon_pct}% de descuento en el total.")
+                    else:
+                        st.error("Cupón inválido o inactivo.")
+                
+                monto_descuento_global = 0.0
+                if descuento_cupon_pct > 0:
+                    monto_descuento_global = tot_carrito * (descuento_cupon_pct / 100)
+                    tot_carrito = tot_carrito - monto_descuento_global
+                    st.markdown(f"### Total (con descuento): ${tot_carrito:,.2f}")
+                else:
+                    st.markdown(f"### Total: ${tot_carrito:,.2f}")
                 
                 metodo = st.selectbox("Método de Pago", ["Efectivo", "Tarjeta", "Transferencia"])
                 
@@ -749,21 +821,65 @@ else:
                 disable_btn = True if (metodo == "Efectivo" and pago_cliente < tot_carrito) else False
                 
                 if st.button("✅ PROCESAR TRANSACCIÓN MULTIPLE", type="primary", use_container_width=True, disabled=disable_btn):
-                    # Procesar cada item del carrito
                     for item in st.session_state.carrito:
                         idx_inv = df_inv[df_inv['SKU']==item['SKU']].index[0]
                         df_inv.at[idx_inv, 'Cantidad'] -= item['Cantidad']
-                        registrar_historial("VENTA", item['SKU'], item['Modelo'], item['Cantidad'], item['Precio_Venta'], item['Costo_Unitario'], "Venta Múltiple TPV", metodo)
+                        
+                        desc_extra = item['Subtotal'] * (descuento_cupon_pct / 100)
+                        desc_total = (item.get('Descuento_Unitario', 0.0) * item['Cantidad']) + desc_extra
+                        
+                        registrar_historial("VENTA", item['SKU'], item['Modelo'], item['Cantidad'], item['Precio_Venta'], item['Costo_Unitario'], "Venta Múltiple TPV", metodo, desc_total)
                         
                     guardar_df(df_inv, ARCHIVO_INVENTARIO)
-                    txt_ticket, html_ticket = generar_ticket(st.session_state.carrito, tot_carrito, st.session_state.nombre_usuario, metodo, pago_cliente, cambio)
+                    txt_ticket, html_ticket = generar_ticket(st.session_state.carrito, tot_carrito, st.session_state.nombre_usuario, metodo, pago_cliente, cambio, monto_descuento_global)
                     st.session_state.ultimo_ticket = txt_ticket
                     st.session_state.ultimo_ticket_html = html_ticket
-                    st.session_state.carrito = [] # Limpiar carrito
+                    st.session_state.carrito = [] 
                     st.session_state.busqueda_manual = "" 
                     st.success("Transacción registrada correctamente.")
                     time.sleep(0.5)
                     st.rerun()
+
+            st.markdown("---")
+            if st.session_state.rol_usuario == "Administrador":
+                with st.expander("🎫 GESTIÓN DE CUPONES DE DESCUENTO (Configuración)", expanded=True):
+                    st.markdown("Administra los códigos promocionales para que los cajeros los apliquen en el carrito.")
+                    df_cup = cargar_cupones()
+                    
+                    c_crear, c_eliminar = st.columns(2)
+                    
+                    with c_crear:
+                        with st.form("form_cupones", clear_on_submit=True):
+                            st.markdown("##### Crear Nuevo Cupón")
+                            n_cup = st.text_input("Código del Cupón (Ej. VERANO20)").upper()
+                            n_pct = st.number_input("Descuento (%)", min_value=1.0, max_value=100.0, value=10.0)
+                            if st.form_submit_button("Crear Cupón"):
+                                if n_cup:
+                                    if not df_cup.empty and n_cup in df_cup['Codigo'].values:
+                                        st.error("Ese código de cupón ya existe.")
+                                    else:
+                                        nuevo_cup = {'Codigo': n_cup, 'Descuento_Pct': n_pct, 'Activo': 'Si'}
+                                        df_cup = pd.concat([df_cup, pd.DataFrame([nuevo_cup])], ignore_index=True)
+                                        guardar_df(df_cup, ARCHIVO_CUPONES)
+                                        st.success(f"Cupón {n_cup} creado exitosamente.")
+                                        time.sleep(1); st.rerun()
+                    
+                    with c_eliminar:
+                        if not df_cup.empty:
+                            with st.form("form_eliminar_cupones"):
+                                st.markdown("##### Eliminar Cupón")
+                                cupon_a_eliminar = st.selectbox("Seleccione el cupón a eliminar:", df_cup['Codigo'].tolist())
+                                if st.form_submit_button("🗑️ Eliminar Cupón"):
+                                    df_cup = df_cup[df_cup['Codigo'] != cupon_a_eliminar]
+                                    guardar_df(df_cup, ARCHIVO_CUPONES)
+                                    st.success(f"Cupón {cupon_a_eliminar} eliminado exitosamente.")
+                                    time.sleep(1); st.rerun()
+                        else:
+                            st.info("No hay cupones activos para eliminar.")
+
+                    if not df_cup.empty:
+                        st.markdown("##### Lista de Cupones Activos")
+                        st.dataframe(df_cup, hide_index=True, use_container_width=True)
 
     # 3. INVENTARIO
     with t_inv:
@@ -774,7 +890,6 @@ else:
         if ver_bajo:
             df_show = df_show[df_show['Cantidad'] <= df_show['Stock_Minimo']]
             
-        # Para mostrar imagen en tabla Streamlit
         st.dataframe(
             df_show[['SKU', 'Categoria', 'Genero', 'Modelo', 'Talla', 'Cantidad', 'Costo_Unitario', 'Precio_Venta']], 
             use_container_width=True,
@@ -806,13 +921,31 @@ else:
 
         with c_remate:
             if st.session_state.rol_usuario == "Administrador":
-                st.markdown("#### 🚨 Alerta de Remates")
+                st.markdown("#### 🚨 Alerta de Remates (Alto Stock)")
                 remates = df_inv[(df_inv['Cantidad'] >= 5)]
                 if not remates.empty:
-                    st.warning("Artículos sugeridos para liquidación (Alto Stock):")
                     for _, rem in remates.iterrows():
                         st.write(f"🔻 **{rem['Modelo']}** (Quedan {rem['Cantidad']}) - Sugerido: **${float(rem['Costo_Unitario'])*1.1:,.2f}**")
-                else: st.success("Inventario rotando bien. Sin estancamientos.")
+                else: st.success("Inventario rotando bien. Sin alto stock.")
+                
+                st.markdown("#### 🧠 Inteligencia: Mercancía Rezagada (>7 meses)")
+                
+                cinco_meses_atras = pd.Timestamp.now() - pd.DateOffset(months=7)
+                df_inv['Fecha_Dt_Ing'] = pd.to_datetime(df_inv['Fecha_Ingreso'], errors='coerce')
+                
+                rezagados = df_inv[df_inv['Fecha_Dt_Ing'] < cinco_meses_atras]
+                
+                if not rezagados.empty:
+                    st.warning("⚠️ Artículos detectados como rezagados en el sistema:")
+                    for _, r in rezagados.iterrows():
+                        desc = float(r['Precio_Venta']) * 0.8 
+                        margen = desc - float(r['Costo_Unitario'])
+                        if margen > 0:
+                            st.write(f"📉 **{r['Modelo']}** - 20% Off Sugerido: **${desc:,.2f}** (Aún ganas ${margen:,.2f})")
+                        else:
+                            st.write(f"📉 **{r['Modelo']}** - Remate: **${float(r['Costo_Unitario'])*1.05:,.2f}** (Costo + 5%)")
+                else:
+                    st.success("✅ Excelente rotación. Sin mercancía rezagada.")
 
     # 4. ADMINISTRACIÓN DE CATÁLOGO
     if t_adm:
@@ -862,6 +995,8 @@ else:
                         img_file = st.file_uploader("Sube foto del producto", type=['png', 'jpg', 'jpeg'])
                     else:
                         img_file = st.camera_input("Tomar foto")
+                        if img_file:
+                            st.success("✅ Foto capturada. Haz clic en 'Aplicar Cambios...' para guardarla.")
 
                 with c_form_data:
                     with st.form("adm", clear_on_submit=(act=="Registro Nuevo")):
@@ -873,45 +1008,48 @@ else:
                         f_cat = c3.selectbox("Línea de Producto", ["Calzado", "Ropa", "Accesorios"], index=["Calzado", "Ropa", "Accesorios"].index(d_cat) if d_cat in ["Calzado", "Ropa", "Accesorios"] else 0) 
                         f_talla = c_talla.text_input("Número / Talla", d_talla)
                         f_gen = c_gen.selectbox("Género", ["Hombre", "Mujer", "Unisex", "Niños"], index=["Hombre", "Mujer", "Unisex", "Niños"].index(d_gen) if d_gen in ["Hombre", "Mujer", "Unisex", "Niños"] else 2)
-            st.markdown("---")
-            with st.expander("🎫 GENERADOR DE CUPONES DE DESCUENTO (Configuración)", expanded=True):
-                st.markdown("Crea o elimina códigos promocionales para que los cajeros los apliquen en el carrito.")
-                df_cup = cargar_cupones()
-                
-                c_crear, c_eliminar = st.columns(2)
-                
-                with c_crear:
-                    with st.form("form_cupones", clear_on_submit=True):
-                        st.markdown("##### Crear Nuevo Cupón")
-                        n_cup = st.text_input("Código del Cupón (Ej. VERANO20)").upper()
-                        n_pct = st.number_input("Descuento (%)", min_value=1.0, max_value=100.0, value=10.0)
-                        if st.form_submit_button("Crear Cupón"):
-                            if n_cup:
-                                if n_cup in df_cup['Codigo'].values:
-                                    st.error("Ese código de cupón ya existe.")
+                        
+                        c4, c5 = st.columns(2)
+                        f_qty = c4.number_input("Unidades Físicas Ingresadas", value=d_qty)
+                        f_min = c5.number_input("Punto de Reorden (Stock Mínimo)", value=d_min) 
+                        
+                        st.markdown("##### Parámetros de Rentabilidad")
+                        c6, c7, c8 = st.columns(3)
+                        f_cos = c6.number_input("Costo de Adquisición Unitario", value=d_cost)
+                        f_pv = c7.number_input("Precio de Venta Sugerido", value=d_pv)
+                        f_lnk = c8.text_input("Identificador de Proveedor", d_link)
+                        
+                        c9, c10 = st.columns(2)
+                        f_ml = c9.number_input("Precio Mercado Libre", value=d_ml) 
+                        f_amz = c10.number_input("Precio Amazon", value=d_amz) 
+                        
+                        if st.form_submit_button("Aplicar Cambios en Base de Datos"):
+                            if not f_mod or not f_talla: st.error("La descripción y la talla son obligatorias.")
+                            else:
+                                f_mod = sanitizar_texto(f_mod)
+                                f_sku = sanitizar_texto(f_sku)
+                                if not f_sku: f_sku = f"TR-{str(uuid.uuid4())[:6].upper()}"
+                                
+                                final_img = image_to_base64(img_file) if img_file else d_img
+                                fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+                                
+                                new_d = {'SKU': f_sku, 'Categoria': f_cat, 'Genero': f_gen, 'Modelo': f_mod, 'Talla': f_talla, 'Tipo': 'Retail', 'Cantidad': f_qty, 'Stock_Minimo': f_min, 'Costo_Unitario': f_cos, 'Precio_Venta': f_pv, 'Proveedor': f_lnk, 'Precio_ML': f_ml, 'Precio_Amazon': f_amz, 'Imagen_Base64': final_img, 'Fecha_Ingreso': fecha_hoy}
+                                
+                                if act in ["Modificar Datos", "Ajuste de Existencias"] and idx_e != -1:
+                                    diff = f_qty - df_inv.at[idx_e, 'Cantidad']
+                                    for k,v in new_d.items(): 
+                                        if k != 'Fecha_Ingreso': # No modificar la fecha original
+                                            df_inv.at[idx_e, k] = v
+                                    guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                                    registrar_historial("AJUSTE_INV", f_sku, f_mod, abs(diff), 0, 0, "Modificación desde Panel Admin")
+                                    st.success("Registro actualizado en la base de datos.")
                                 else:
-                                    nuevo_cup = {'Codigo': n_cup, 'Descuento_Pct': n_pct, 'Activo': 'Si'}
-                                    df_cup = pd.concat([df_cup, pd.DataFrame([nuevo_cup])], ignore_index=True)
-                                    guardar_df(df_cup, ARCHIVO_CUPONES)
-                                    st.success(f"Cupón {n_cup} creado exitosamente.")
-                                    time.sleep(1); st.rerun()
-                
-                with c_eliminar:
-                    if not df_cup.empty:
-                        with st.form("form_eliminar_cupones"):
-                            st.markdown("##### Eliminar Cupón")
-                            cupon_a_eliminar = st.selectbox("Seleccione el cupón a eliminar:", df_cup['Codigo'].tolist())
-                            if st.form_submit_button("🗑️ Eliminar Cupón"):
-                                df_cup = df_cup[df_cup['Codigo'] != cupon_a_eliminar]
-                                guardar_df(df_cup, ARCHIVO_CUPONES)
-                                st.success(f"Cupón {cupon_a_eliminar} eliminado exitosamente.")
-                                time.sleep(1); st.rerun()
-                    else:
-                        st.info("No hay cupones activos para eliminar.")
-
-                if not df_cup.empty:
-                    st.markdown("##### Lista de Cupones Activos")
-                    st.dataframe(df_cup, hide_index=True, use_container_width=True)
+                                    df_inv = pd.concat([df_inv, pd.DataFrame([new_d])], ignore_index=True)
+                                    guardar_df(df_inv, ARCHIVO_INVENTARIO)
+                                    registrar_historial("ENTRADA_INV", f_sku, f_mod, f_qty, 0, f_cos, "Alta de Nuevo Artículo")
+                                    st.success("Artículo dado de alta exitosamente.")
+                                time.sleep(1)
+                                st.rerun()
 
     # 5. REPORTES FINANCIEROS Y BONOS
     if t_rep:
@@ -943,27 +1081,29 @@ else:
                     if not vs.empty:
                         tot_v = vs['Monto_Venta'].sum()
                         tot_c = vs['Costo_Venta'].sum() 
+                        tot_d = vs['Descuento'].sum()
                         bruta = tot_v - tot_c
                         gastos_variables = tot_v * (imp_pct + com_pct)
                         neta = bruta - gastos_variables
                         num_transacciones = len(vs)
                         ticket_promedio = tot_v / num_transacciones if num_transacciones > 0 else 0
                         
-                        m1, m2, m3 = st.columns(3)
+                        m1, m2, m3, m4 = st.columns(4)
                         m1.metric("Facturación Total", f"${tot_v:,.2f}")
                         m2.metric("CMV", f"-${tot_c:,.2f}")
-                        m3.metric("Utilidad Bruta", f"${bruta:,.2f}")
+                        m3.metric("Descuentos Autorizados", f"-${tot_d:,.2f}")
+                        m4.metric("Utilidad Bruta", f"${bruta:,.2f}")
                         
-                        m4, m5, m6 = st.columns(3)
-                        m4.metric("Deducciones", f"-${gastos_variables:,.2f}")
-                        m5.metric("Utilidad Neta", f"${neta:,.2f}")
-                        m6.metric("Margen Neto (%)", f"{(neta/tot_v)*100:.2f}%" if tot_v > 0 else "0.00%")
+                        m5, m6, m7, _ = st.columns(4)
+                        m5.metric("Deducciones", f"-${gastos_variables:,.2f}")
+                        m6.metric("Utilidad Neta", f"${neta:,.2f}")
+                        m7.metric("Margen Neto (%)", f"{(neta/tot_v)*100:.2f}%" if tot_v > 0 else "0.00%")
                         st.info(f"💡 Se han realizado **{num_transacciones}** ventas. Ticket promedio: **${ticket_promedio:,.2f}**.")
                     
                     st.divider()
                     st.markdown("##### Rendimiento por Asesor y Bonos")
                     if not vs.empty:
-                        com = vs.groupby('Usuario')['Monto_Venta'].sum().reset_index()
+                        com = vs.groupby('Usuario').agg({'Monto_Venta': 'sum', 'Descuento': 'sum'}).reset_index()
                         
                         # --- NUEVO: TOP VENDEDOR ---
                         st.markdown("###### 🏆 Reconocimiento al Mejor Vendedor")
@@ -986,7 +1126,7 @@ else:
                         com['Premio 1er Lugar'] = com['Usuario'].apply(lambda x: bono_top if x == top_vendedor['Usuario'] else 0.0)
                         com['Total a Pagar'] = com['Comisión Base (3%)'] + com['Bono Extra'] + com['Premio 1er Lugar']
                         
-                        st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Comisión Base (3%)': '${:,.2f}', 'Bono Extra': '${:,.2f}', 'Premio 1er Lugar': '${:,.2f}', 'Total a Pagar': '${:,.2f}'}), use_container_width=True)
+                        st.dataframe(com.style.format({'Monto_Venta': '${:,.2f}', 'Descuento': '${:,.2f}', 'Comisión Base (3%)': '${:,.2f}', 'Bono Extra': '${:,.2f}', 'Premio 1er Lugar': '${:,.2f}', 'Total a Pagar': '${:,.2f}'}), use_container_width=True)
             else:
                 st.markdown("#### Mis Ventas y Progreso de Bonos")
                 if df_full is not None and not df_full.empty:
@@ -999,6 +1139,7 @@ else:
                     vs = df_full[(df_full['Accion'].str.contains('VENTA')) & (df_full['Usuario'] == st.session_state.nombre_usuario)]
                     if not vs.empty:
                         tot_v = vs['Monto_Venta'].sum()
+                        tot_d = vs['Descuento'].sum()
                         
                         if st.session_state.nombre_usuario == top_user:
                             st.success("🏆 ¡Felicidades! Actualmente eres el VENDEDOR #1. ¡Mantén el ritmo para llevarte el bono especial!")
@@ -1018,10 +1159,11 @@ else:
                         m2.metric("Bono Extra", f"${bono_extra:,.2f}")
                         m3.metric("Premio 1er Lugar", f"${bono_primer_lugar:,.2f}")
                         m4.metric("Total a Recibir", f"${total_pagar:,.2f}")
+                        st.info(f"Has otorgado **${tot_d:,.2f}** en descuentos autorizados.")
                         
                         st.divider()
                         st.markdown("##### Historial de mis ventas")
-                        st.dataframe(vs[['Fecha', 'Modelo', 'Cantidad', 'Monto_Venta', 'Metodo_Pago']], hide_index=True, use_container_width=True)
+                        st.dataframe(vs[['Fecha', 'Modelo', 'Cantidad', 'Monto_Venta', 'Descuento', 'Metodo_Pago']], hide_index=True, use_container_width=True)
                     else:
                         st.info("Aún no tienes ventas registradas en el sistema.")
 
@@ -1030,6 +1172,7 @@ else:
         with t_crm:
             crm_tabs = st.tabs(["👥 Directorio de Contactos", "💬 Bandeja de Entrada (Chats)", "⚙️ Configuración APIs (Webhooks)"])
             
+            # --- Pestaña 1: Directorio (Lo que ya tenías) ---
             with crm_tabs[0]:
                 c_form, c_action = st.columns([1, 1])
                 
@@ -1052,7 +1195,6 @@ else:
                     st.markdown("#### 🚀 Gestión y Acción Rápida")
                     if not df_crm.empty:
                         contacto_sel = st.selectbox("Seleccione a quién contactar / editar:", df_crm['Nombre'].unique())
-                        # Corrección aplicada aquí para evitar el NameError original
                         datos_contacto = df_crm[df_crm['Nombre'] == contacto_sel].iloc[0]
                         
                         accion_crm = st.radio("Acción:", ["Contactar", "Editar", "Eliminar"], horizontal=True)
@@ -1108,6 +1250,7 @@ else:
                     st.markdown("##### Proveedores")
                     st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Proveedor'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
             
+            # --- Pestaña 2: Bandeja de Entrada (Preparación para Webhook) ---
             with crm_tabs[1]:
                 st.markdown("#### 💬 Mensajes Recibidos Automáticamente")
                 st.info("💡 **Aviso:** Streamlit requiere un servidor secundario (como Flask) para recibir Webhooks. Cuando el servidor externo reciba un mensaje de la API de Meta, lo escribirá en el archivo 'tr_inbox.csv' y aparecerá aquí.")
@@ -1132,6 +1275,7 @@ else:
                             st.write(f"**{msg['Remitente']}** vía {msg['Plataforma']} - {msg['Fecha']}")
                             st.write(f"_{msg['Mensaje']}_")
 
+            # --- Pestaña 3: Configuración APIs ---
             with crm_tabs[2]:
                 st.markdown("#### ⚙️ Credenciales de Integración (Meta for Developers)")
                 st.write("Llena estos datos con la información de tu app en Meta. El servidor Flask usará estas claves para conectarse.")
