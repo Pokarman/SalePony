@@ -246,8 +246,9 @@ def cargar_inventario():
     df = cargar_csv(ARCHIVO_INVENTARIO, cols)
     if df.empty:
         datos = [
-            {'SKU': 'NK-AJ1-RED-27', 'Categoria': 'Calzado', 'Genero': 'Hombre', 'Modelo': 'Nike Air Jordan 1 Rojo', 'Talla': '27', 'Tipo': 'Mayorista', 'Cantidad': 12, 'Stock_Minimo': 3, 'Costo_Unitario': 1200.0, 'Precio_Venta': 2500.0, 'Proveedor': 'Distribuidor Nacional', 'Precio_ML': 2800.0, 'Precio_Amazon': 2750.0, 'Imagen_Base64': ''},
-            {'SKU': 'AD-ULB-BLK-26', 'Categoria': 'Calzado', 'Genero': 'Mujer', 'Modelo': 'Adidas Ultraboost Negro', 'Talla': '26', 'Tipo': 'Mayorista', 'Cantidad': 8, 'Stock_Minimo': 2, 'Costo_Unitario': 1500.0, 'Precio_Venta': 3200.0, 'Proveedor': 'Importación Directa', 'Precio_ML': 3500.0, 'Precio_Amazon': 3400.0, 'Imagen_Base64': ''}
+            {'SKU': 'NK-AJ1-RED-27', 'Categoria': 'Calzado', 'Genero': 'Hombre', 'Modelo': 'Nike Air Jordan 1 Rojo (Nuevo)', 'Talla': '27', 'Tipo': 'Mayorista', 'Cantidad': 12, 'Stock_Minimo': 3, 'Costo_Unitario': 1200.0, 'Precio_Venta': 2500.0, 'Proveedor': 'Distribuidor Nacional', 'Precio_ML': 2800.0, 'Precio_Amazon': 2750.0, 'Imagen_Base64': ''},
+            {'SKU': 'AD-ULB-BLK-26', 'Categoria': 'Calzado', 'Genero': 'Mujer', 'Modelo': 'Adidas Ultraboost Negro (Antiguo)', 'Talla': '26', 'Tipo': 'Mayorista', 'Cantidad': 8, 'Stock_Minimo': 2, 'Costo_Unitario': 1500.0, 'Precio_Venta': 3200.0, 'Proveedor': 'Importación Directa', 'Precio_ML': 3500.0, 'Precio_Amazon': 3400.0, 'Imagen_Base64': ''},
+            {'SKU': 'NK-OLD-RETRO', 'Categoria': 'Calzado', 'Genero': 'Hombre', 'Modelo': 'Nike Modelo Viejo 2023', 'Talla': '28', 'Tipo': 'Retail', 'Cantidad': 10, 'Stock_Minimo': 2, 'Costo_Unitario': 1000.0, 'Precio_Venta': 2000.0, 'Proveedor': 'Antiguo Prov', 'Precio_ML': 2100.0, 'Precio_Amazon': 2100.0, 'Imagen_Base64': ''}
         ]
         df = pd.DataFrame(datos)
         df.to_csv(ARCHIVO_INVENTARIO, index=False)
@@ -1011,7 +1012,7 @@ else:
                     st.markdown("### Estado de Resultados")
                     tab = df_c.groupby(grp)[['Monto_Venta', 'Monto_Gasto']].sum()
                     tab.columns = ['Ingresos Brutos', 'Costo de Adquisición/Gastos']
-                    tab['Utilidad Operativa'] = tab['Ingresos Brutos'] - tab['Costo de Adquisición/Gastos']
+                    tab['Utilidad Operativa'] = tab['Ingresos Brutos'] - tab['Costo_Venta'] - tab['Monto_Gasto']
                     st.dataframe(tab.style.format("${:,.2f}"), use_container_width=True)
                     
                     csv = tab.to_csv().encode('utf-8')
@@ -1127,7 +1128,7 @@ else:
                     with st.form("crm_form", clear_on_submit=True):
                         tipo = st.radio("Clasificación:", ["Cliente", "Proveedor"], horizontal=True)
                         nombre = st.text_input("Nombre / Empresa")
-                        contacto = st.text_input("Teléfono (Ej. 6676562718) o Correo")
+                        contacto = st.text_input("Teléfono (Ej. 5576562718) o Correo")
                         nota = st.text_area("Nota o Petición")
                         if st.form_submit_button("Guardar"):
                             if nombre and contacto:
