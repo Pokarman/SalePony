@@ -10,7 +10,7 @@ import smtplib
 import urllib.parse
 import base64
 import streamlit.components.v1 as components
-import pyotp # NUEVO: Librería para Microsoft Authenticator (2FA)
+import pyotp 
 from email.mime.text import MIMEText 
 from email.mime.multipart import MIMEMultipart 
 from email.mime.image import MIMEImage
@@ -301,7 +301,7 @@ def generar_ticket(carrito_items, total, user, metodo_pago="Efectivo", pago_clie
  Cajero:  {user}
  Pago:    {metodo_pago}
 ----------------------------------------
- CANT | DESCRIPCION            | IMPORTE
+ CANT | DESCRIPCION             | IMPORTE
 ----------------------------------------
 {items_str}----------------------------------------
             TOTAL A PAGAR: ${total:,.2f}{pago_str}
@@ -486,6 +486,24 @@ else:
                 else: st.warning(f"Diferencia en EFECTIVO detectada: ${diff:,.2f}")
 
         if st.session_state.rol_usuario == "Administrador":
+            # GESTIÓN DE ACCESOS (SOLO ADMIN)
+            with st.expander("👤 Gestión de Usuarios (Accesos)", expanded=False):
+                st.write("Restablece contraseñas de vendedores u otros administradores.")
+                df_usrs = cargar_usuarios()
+                with st.form("reset_pass_form"):
+                    usr_sel = st.selectbox("Seleccione un usuario", df_usrs['Usuario'].tolist())
+                    new_pw = st.text_input("Nueva contraseña", type="password")
+                    if st.form_submit_button("Actualizar Contraseña"):
+                        if new_pw.strip():
+                            idx = df_usrs[df_usrs['Usuario'] == usr_sel].index[0]
+                            df_usrs.at[idx, 'Clave'] = hash_password(new_pw)
+                            df_usrs.to_csv(ARCHIVO_USUARIOS, index=False)
+                            st.success(f"Clave actualizada para {usr_sel}.")
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error("La contraseña no puede estar vacía.")
+
             with st.expander("🔌 Integración E-commerce"):
                 ml_token_env = os.environ.get("ML_TOKEN", "")
                 st.text_input("API Key Mercado Libre", value=ml_token_env, type="password")
@@ -634,7 +652,6 @@ else:
                     col_info1.markdown("<h1>👟</h1>", unsafe_allow_html=True)
                 
                 with col_info2:
-                    # Calcular stock real disponible considerando lo que ya está en el carrito
                     qty_in_cart = sum(item['Cantidad'] for item in st.session_state.carrito if item['SKU'] == sel['SKU'])
                     stock_real = int(df_inv.at[idx, 'Cantidad']) - qty_in_cart
                     stock_min = int(df_inv.at[idx, 'Stock_Minimo'])
@@ -749,7 +766,6 @@ else:
                 disable_btn = True if (metodo == "Efectivo" and pago_cliente < tot_carrito) else False
                 
                 if st.button("✅ PROCESAR TRANSACCIÓN MULTIPLE", type="primary", use_container_width=True, disabled=disable_btn):
-                    # Procesar cada item del carrito
                     for item in st.session_state.carrito:
                         idx_inv = df_inv[df_inv['SKU']==item['SKU']].index[0]
                         df_inv.at[idx_inv, 'Cantidad'] -= item['Cantidad']
@@ -759,7 +775,7 @@ else:
                     txt_ticket, html_ticket = generar_ticket(st.session_state.carrito, tot_carrito, st.session_state.nombre_usuario, metodo, pago_cliente, cambio)
                     st.session_state.ultimo_ticket = txt_ticket
                     st.session_state.ultimo_ticket_html = html_ticket
-                    st.session_state.carrito = [] # Limpiar carrito
+                    st.session_state.carrito = [] 
                     st.session_state.busqueda_manual = "" 
                     st.success("Transacción registrada correctamente.")
                     time.sleep(0.5)
@@ -1030,6 +1046,7 @@ else:
         with t_crm:
             crm_tabs = st.tabs(["👥 Directorio de Contactos", "💬 Bandeja de Entrada (Chats)", "⚙️ Configuración APIs (Webhooks)"])
             
+            # --- Pestaña 1: Directorio (Lo que ya tenías) ---
             with crm_tabs[0]:
                 c_form, c_action = st.columns([1, 1])
                 
@@ -1038,7 +1055,7 @@ else:
                     with st.form("crm_form", clear_on_submit=True):
                         tipo = st.radio("Clasificación:", ["Cliente", "Proveedor"], horizontal=True)
                         nombre = st.text_input("Nombre / Empresa")
-                        contacto = st.text_input("Teléfono (Ej. 5576562718) o Correo")
+                        contacto = st.text_input("Teléfono (Ej. 6676562718) o Correo")
                         nota = st.text_area("Nota o Petición")
                         if st.form_submit_button("Guardar"):
                             if nombre and contacto:
@@ -1052,7 +1069,6 @@ else:
                     st.markdown("#### 🚀 Gestión y Acción Rápida")
                     if not df_crm.empty:
                         contacto_sel = st.selectbox("Seleccione a quién contactar / editar:", df_crm['Nombre'].unique())
-                        # Corrección aplicada aquí para evitar el NameError original
                         datos_contacto = df_crm[df_crm['Nombre'] == contacto_sel].iloc[0]
                         
                         accion_crm = st.radio("Acción:", ["Contactar", "Editar", "Eliminar"], horizontal=True)
@@ -1108,6 +1124,7 @@ else:
                     st.markdown("##### Proveedores")
                     st.dataframe(df_crm_sorted[df_crm_sorted['Tipo']=='Proveedor'][['Fecha', 'Nombre', 'Contacto', 'Mensaje_Nota']], hide_index=True)
             
+            # --- Pestaña 2: Bandeja de Entrada (Preparación para Webhook) ---
             with crm_tabs[1]:
                 st.markdown("#### 💬 Mensajes Recibidos Automáticamente")
                 st.info("💡 **Aviso:** Streamlit requiere un servidor secundario (como Flask) para recibir Webhooks. Cuando el servidor externo reciba un mensaje de la API de Meta, lo escribirá en el archivo 'tr_inbox.csv' y aparecerá aquí.")
@@ -1116,6 +1133,7 @@ else:
                 
                 if df_inbox.empty:
                     st.write("No hay mensajes nuevos en tu bandeja.")
+                    # Botón para simular entrada de datos por un Webhook externo
                     if st.button("Simular mensaje entrante (Prueba)"):
                         nuevo_msg = {'Fecha': datetime.now().strftime("%Y-%m-%d %H:%M"), 'Plataforma': 'WhatsApp', 'Remitente': '5576562718', 'Mensaje': 'Hola, ¿tienen disponibilidad de la talla 27?'}
                         df_inbox = pd.concat([df_inbox, pd.DataFrame([nuevo_msg])], ignore_index=True)
@@ -1132,6 +1150,7 @@ else:
                             st.write(f"**{msg['Remitente']}** vía {msg['Plataforma']} - {msg['Fecha']}")
                             st.write(f"_{msg['Mensaje']}_")
 
+            # --- Pestaña 3: Configuración APIs ---
             with crm_tabs[2]:
                 st.markdown("#### ⚙️ Credenciales de Integración (Meta for Developers)")
                 st.write("Llena estos datos con la información de tu app en Meta. El servidor Flask usará estas claves para conectarse.")
