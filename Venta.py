@@ -123,7 +123,7 @@ ARCHIVO_USUARIOS = 'tr_usuarios.csv'
 ARCHIVO_CONFIG_API = 'tr_config_apis.csv'
 ARCHIVO_CRM = 'tr_crm.csv' 
 ARCHIVO_INBOX = 'tr_inbox.csv'
-ARCHIVO_CUPONES = 'tr_cupones.csv' # NUEVO: Archivo para cupones
+ARCHIVO_CUPONES = 'tr_cupones.csv' 
 
 # ==========================================
 # 2. SEGURIDAD Y DATOS
@@ -141,11 +141,12 @@ def image_to_base64(image_file):
     return ""
 
 def cargar_usuarios():
+    # CLAVES FIJAS PARA EVITAR REINICIOS
     if not os.path.exists(ARCHIVO_USUARIOS):
         usuarios_defecto = [
-            {'Usuario': 'admin', 'Clave': hash_password('admin123'), 'Rol': 'Administrador', 'Nombre': 'Gerencia SportKing', '2FA_Secret': pyotp.random_base32()},
-            {'Usuario': 'cajero1', 'Clave': hash_password('caja1'), 'Rol': 'Vendedor', 'Nombre': 'Cajero Uno', '2FA_Secret': pyotp.random_base32()},
-            {'Usuario': 'cajero2', 'Clave': hash_password('caja2'), 'Rol': 'Vendedor', 'Nombre': 'Cajero Dos', '2FA_Secret': pyotp.random_base32()}
+            {'Usuario': 'admin', 'Clave': hash_password('admin123'), 'Rol': 'Administrador', 'Nombre': 'Gerencia SportKing', '2FA_Secret': 'JBSWY3DPEHPK3PXP'},
+            {'Usuario': 'cajero1', 'Clave': hash_password('caja1'), 'Rol': 'Vendedor', 'Nombre': 'Cajero Uno', '2FA_Secret': 'K5ZWK4DPEHPK3PXP'},
+            {'Usuario': 'cajero2', 'Clave': hash_password('caja2'), 'Rol': 'Vendedor', 'Nombre': 'Cajero Dos', '2FA_Secret': 'M5ZWK4DPEHPK3PXP'}
         ]
         df = pd.DataFrame(usuarios_defecto)
         df.to_csv(ARCHIVO_USUARIOS, index=False)
@@ -153,7 +154,7 @@ def cargar_usuarios():
     
     df = pd.read_csv(ARCHIVO_USUARIOS)
     if '2FA_Secret' not in df.columns:
-        df['2FA_Secret'] = [pyotp.random_base32() for _ in range(len(df))]
+        df['2FA_Secret'] = ['JBSWY3DPEHPK3PXP' for _ in range(len(df))]
         df.to_csv(ARCHIVO_USUARIOS, index=False)
     return df
 
@@ -229,11 +230,10 @@ def cargar_inventario():
     cols = ['SKU', 'Categoria', 'Genero', 'Modelo', 'Talla', 'Tipo', 'Cantidad', 'Stock_Minimo', 'Costo_Unitario', 'Precio_Venta', 'Proveedor', 'Precio_ML', 'Precio_Amazon', 'Imagen_Base64', 'Fecha_Ingreso']
     df = cargar_csv(ARCHIVO_INVENTARIO, cols)
     if df.empty:
-        # Pre-carga con artículos rezagados (>7 meses) y artículos nuevos
-        d_viejo_1 = (datetime.now() - timedelta(days=250)).strftime("%Y-%m-%d") # > 8 meses
-        d_viejo_2 = (datetime.now() - timedelta(days=220)).strftime("%Y-%m-%d") # > 7 meses
-        d_viejo_3 = (datetime.now() - timedelta(days=280)).strftime("%Y-%m-%d") # > 9 meses
-        d_nuevo = datetime.now().strftime("%Y-%m-%d") # Hoy
+        d_viejo_1 = (datetime.now() - timedelta(days=250)).strftime("%Y-%m-%d") 
+        d_viejo_2 = (datetime.now() - timedelta(days=220)).strftime("%Y-%m-%d") 
+        d_viejo_3 = (datetime.now() - timedelta(days=280)).strftime("%Y-%m-%d") 
+        d_nuevo = datetime.now().strftime("%Y-%m-%d") 
         
         datos = [
             {'SKU': 'NK-AJ1-RED-27', 'Categoria': 'Calzado', 'Genero': 'Hombre', 'Modelo': 'Nike Air Jordan 1 Rojo (Nuevo)', 'Talla': '27', 'Tipo': 'Mayorista', 'Cantidad': 12, 'Stock_Minimo': 3, 'Costo_Unitario': 1200.0, 'Precio_Venta': 2500.0, 'Proveedor': 'Distribuidor Nacional', 'Precio_ML': 2800.0, 'Precio_Amazon': 2750.0, 'Imagen_Base64': '', 'Fecha_Ingreso': d_nuevo},
@@ -381,8 +381,8 @@ if not st.session_state.sesion_iniciada:
         st.markdown("""
             <div class="login-card">
                 <h1 style='text-align: center; margin-bottom: 0;'>👟 SPORTKING</h1>
-                <p style='text-align: center; opacity: 0.8; font-weight: 600; color: #C5A059;'>Sport & Punto de Venta</p>
-                <hr style='border-color: rgba(197, 160, 89, 0.2);'>
+                <p style='text-align: center; opacity: 0.8; font-weight: 600; color: #B71C1C;'>Sport & Punto de Venta</p>
+                <hr style='border-color: rgba(255, 23, 68, 0.15);'>
             </div>
         """, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
@@ -684,7 +684,8 @@ else:
                     usar_descuento = st.checkbox("🔑 Autorizar Descuento Especial Manual (Cualquier Artículo)")
                     if usar_descuento:
                         col_desc1, col_desc2 = st.columns(2)
-                        precio_especial = col_desc1.number_input("Nuevo Precio Final ($)", min_value=float(sel['Costo_Unitario']), value=float(sel['Precio_Venta']), max_value=float(sel['Precio_Venta']), step=50.0)
+                        # SOLUCIÓN: min_value en 0.0 para permitir descuento libre a placer
+                        precio_especial = col_desc1.number_input("Nuevo Precio Final ($)", min_value=0.0, value=float(sel['Precio_Venta']), max_value=float(sel['Precio_Venta']), step=50.0)
                         codigo_auth = col_desc2.text_input("Código de Autorización (2FA de Admin)", type="password")
 
                     tot_item = precio_final * q if not usar_descuento else precio_especial * q
@@ -953,6 +954,8 @@ else:
                         img_file = st.file_uploader("Sube foto del producto", type=['png', 'jpg', 'jpeg'])
                     else:
                         img_file = st.camera_input("Tomar foto")
+                        if img_file:
+                            st.success("✅ Foto capturada. Haz clic en 'Aplicar Cambios...' para guardarla.")
 
                 with c_form_data:
                     with st.form("adm", clear_on_submit=(act=="Registro Nuevo")):
@@ -1007,22 +1010,23 @@ else:
                                 time.sleep(1)
                                 st.rerun()
             
-            st.divider()
-            st.markdown("#### 🎫 Generador de Cupones de Descuento")
-            df_cup = cargar_cupones()
-            with st.form("form_cupones", clear_on_submit=True):
-                c_cup1, c_cup2 = st.columns(2)
-                n_cup = c_cup1.text_input("Código del Cupón (Ej. VERANO20)").upper()
-                n_pct = c_cup2.number_input("Descuento (%)", min_value=1.0, max_value=100.0, value=10.0)
-                if st.form_submit_button("Crear Cupón"):
-                    if n_cup:
-                        nuevo_cup = {'Codigo': n_cup, 'Descuento_Pct': n_pct, 'Activo': 'Si'}
-                        df_cup = pd.concat([df_cup, pd.DataFrame([nuevo_cup])], ignore_index=True)
-                        guardar_df(df_cup, ARCHIVO_CUPONES)
-                        st.success(f"Cupón {n_cup} creado exitosamente.")
-                        time.sleep(1); st.rerun()
-            if not df_cup.empty:
-                st.dataframe(df_cup, hide_index=True, use_container_width=True)
+            st.markdown("---")
+            with st.expander("🎫 GENERADOR DE CUPONES DE DESCUENTO (Configuración)", expanded=True):
+                st.markdown("Crea códigos promocionales para que los cajeros los apliquen en el carrito.")
+                df_cup = cargar_cupones()
+                with st.form("form_cupones", clear_on_submit=True):
+                    c_cup1, c_cup2 = st.columns(2)
+                    n_cup = c_cup1.text_input("Código del Cupón (Ej. VERANO20)").upper()
+                    n_pct = c_cup2.number_input("Descuento (%)", min_value=1.0, max_value=100.0, value=10.0)
+                    if st.form_submit_button("Crear Cupón"):
+                        if n_cup:
+                            nuevo_cup = {'Codigo': n_cup, 'Descuento_Pct': n_pct, 'Activo': 'Si'}
+                            df_cup = pd.concat([df_cup, pd.DataFrame([nuevo_cup])], ignore_index=True)
+                            guardar_df(df_cup, ARCHIVO_CUPONES)
+                            st.success(f"Cupón {n_cup} creado exitosamente.")
+                            time.sleep(1); st.rerun()
+                if not df_cup.empty:
+                    st.dataframe(df_cup, hide_index=True, use_container_width=True)
 
     # 5. REPORTES FINANCIEROS Y BONOS
     if t_rep:
