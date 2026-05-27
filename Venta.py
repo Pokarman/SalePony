@@ -10,6 +10,7 @@ import smtplib
 import urllib.parse
 import base64
 import streamlit.components.v1 as components
+import pyotp # NUEVO: Librería para Microsoft Authenticator (2FA)
 from email.mime.text import MIMEText 
 from email.mime.multipart import MIMEMultipart 
 from email.mime.image import MIMEImage
@@ -149,15 +150,23 @@ def image_to_base64(image_file):
     return ""
 
 def cargar_usuarios():
+    # NUEVO: Generación de base de datos con secretos 2FA
     if not os.path.exists(ARCHIVO_USUARIOS):
         usuarios_defecto = [
-            {'Usuario': 'admin', 'Clave': hash_password('admin123'), 'Rol': 'Administrador', 'Nombre': 'Gerencia SportKing'},
-            {'Usuario': 'vendedor', 'Clave': hash_password('ven123'), 'Rol': 'Vendedor', 'Nombre': 'Asesor Comercial'}
+            {'Usuario': 'admin', 'Clave': hash_password('admin123'), 'Rol': 'Administrador', 'Nombre': 'Gerente SportKing', '2FA_Secret': pyotp.random_base32()},
+            {'Usuario': 'cajero1', 'Clave': hash_password('caja1'), 'Rol': 'Vendedor', 'Nombre': 'Cajero Uno', '2FA_Secret': pyotp.random_base32()},
+            {'Usuario': 'cajero2', 'Clave': hash_password('caja2'), 'Rol': 'Vendedor', 'Nombre': 'Cajero Dos', '2FA_Secret': pyotp.random_base32()}
         ]
         df = pd.DataFrame(usuarios_defecto)
         df.to_csv(ARCHIVO_USUARIOS, index=False)
         return df
-    return pd.read_csv(ARCHIVO_USUARIOS)
+    
+    df = pd.read_csv(ARCHIVO_USUARIOS)
+    # Soporte hacia atrás si el archivo ya existe pero no tiene seguridad 2FA
+    if '2FA_Secret' not in df.columns:
+        df['2FA_Secret'] = [pyotp.random_base32() for _ in range(len(df))]
+        df.to_csv(ARCHIVO_USUARIOS, index=False)
+    return df
 
 def verificar_login(usuario, clave_plana):
     df = cargar_usuarios()
@@ -176,6 +185,9 @@ if 'sesion_iniciada' not in st.session_state:
     st.session_state.carrito = []
     if 'contador_soporte' not in st.session_state: st.session_state.contador_soporte = 0
     if 'busqueda_manual' not in st.session_state: st.session_state.busqueda_manual = "" 
+    # NUEVO: Estados para Autenticación en 2 Pasos
+    if 'login_step' not in st.session_state: st.session_state.login_step = 0
+    if 'temp_user_data' not in st.session_state: st.session_state.temp_user_data = None
 
 def enviar_correo_soporte(mensaje, adjunto=None):
     try:
@@ -184,7 +196,10 @@ def enviar_correo_soporte(mensaje, adjunto=None):
         server.login("alanbdb64@gmail.com", "dxah wqco wygs bjgk".replace(" ", ""))
         msg = MIMEMultipart()
         msg['Subject'] = f"🚨 Alerta de Sistema (SportKing) - {datetime.now().strftime('%H:%M')}"
-        msg.attach(MIMEText(f"Usuario reporta: {st.session_state.nombre_usuario}\n\nDetalle de la incidencia:\n{mensaje}", 'plain'))
+        
+        # Ajuste dinámico de quién reporta (por si es desde el Login "Olvidé Contraseña")
+        nom_reporta = st.session_state.nombre_usuario if st.session_state.nombre_usuario else "Usuario del Sistema (Sin iniciar sesión)"
+        msg.attach(MIMEText(f"Usuario reporta: {nom_reporta}\n\nDetalle de la incidencia:\n{mensaje}", 'plain'))
         
         if adjunto is not None:
             img_data = adjunto.read()
@@ -364,18 +379,55 @@ if not st.session_state.sesion_iniciada:
         """, unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
         
-        with st.form("login"):
-            u = st.text_input("Identificador de Usuario", placeholder="Ingrese su usuario")
-            p = st.text_input("Contraseña", type="password", placeholder="••••••••")
-            if st.form_submit_button("INICIAR SESIÓN"):
-                val = verificar_login(u, p)
-                if val is not None:
-                    st.session_state.sesion_iniciada = True
-                    st.session_state.rol_usuario = val['Rol']
-                    st.session_state.nombre_usuario = val['Nombre']
-                    st.session_state.usuario_id = val['Usuario']
-                    st.rerun()
-                else: st.error("Autenticación fallida. Verifique sus credenciales.")
+        # NUEVO: Lógica de Login Dividida en 2 Pasos (2FA)
+        if st.session_state.login_step == 0:
+            with st.form("login"):
+                u = st.text_input("Identificador de Usuario", placeholder="Ingrese su usuario")
+                p = st.text_input("Contraseña", type="password", placeholder="••••••••")
+                if st.form_submit_button("SIGUIENTE"):
+                    val = verificar_login(u, p)
+                    if val is not None:
+                        st.session_state.temp_user_data = val
+                        st.session_state.login_step = 1
+                        st.rerun()
+                    else: 
+                        st.error("Autenticación fallida. Verifique sus credenciales.")
+            
+            with st.expander("¿Olvidaste tu contraseña?"):
+                st.write("Se enviará una alerta urgente de restablecimiento al administrador del sistema.")
+                u_recup = st.text_input("Tu Usuario de acceso:", key="user_recup")
+                if st.button("Solicitar nueva contraseña"):
+                    if u_recup:
+                        enviar_correo_soporte(f"El empleado con usuario '{u_recup}' ha olvidado su contraseña y solicita un restablecimiento. Por favor, genere una clave temporal en el sistema y contáctelo a la brevedad.")
+                        st.success("Solicitud enviada exitosamente. El administrador te contactará pronto.")
+                    else:
+                        st.warning("Ingresa tu usuario primero para buscarte en el sistema.")
+
+        elif st.session_state.login_step == 1:
+            user_val = st.session_state.temp_user_data
+            st.info("🔐 Autenticación en dos pasos requerida")
+            
+            st.caption(f"Si es tu primera vez iniciando sesión, vincula esta clave secreta en **Microsoft Authenticator**: `{user_val['2FA_Secret']}`")
+            
+            with st.form("2fa_form"):
+                codigo_2fa = st.text_input("Ingresa el código de Microsoft Authenticator (6 dígitos):", placeholder="123456")
+                if st.form_submit_button("VERIFICAR E INICIAR SESIÓN"):
+                    totp = pyotp.TOTP(user_val['2FA_Secret'])
+                    if totp.verify(codigo_2fa):
+                        st.session_state.sesion_iniciada = True
+                        st.session_state.rol_usuario = user_val['Rol']
+                        st.session_state.nombre_usuario = user_val['Nombre']
+                        st.session_state.usuario_id = user_val['Usuario']
+                        st.session_state.login_step = 0
+                        st.session_state.temp_user_data = None
+                        st.rerun()
+                    else:
+                        st.error("Código incorrecto o expirado. Intente de nuevo.")
+            
+            if st.button("Volver atrás"):
+                st.session_state.login_step = 0
+                st.session_state.temp_user_data = None
+                st.rerun()
 
 else:
     df_inv = cargar_inventario()
