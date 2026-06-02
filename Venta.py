@@ -119,6 +119,7 @@ st.markdown("""
 ARCHIVO_INVENTARIO = 'tr_inventario.csv'
 ARCHIVO_HISTORIAL = 'tr_historial.csv'
 ARCHIVO_PEDIDOS = 'tr_pedidos.csv'
+ARCHIVO_PEDIDOS_MANUALES = 'tr_pedidos_manuales.csv' # NUEVO ARCHIVO
 ARCHIVO_USUARIOS = 'tr_usuarios.csv' 
 ARCHIVO_CONFIG_API = 'tr_config_apis.csv'
 ARCHIVO_CRM = 'tr_crm.csv' 
@@ -394,8 +395,16 @@ if not st.session_state.sesion_iniciada:
                 if st.form_submit_button("SIGUIENTE"):
                     val = verificar_login(u, p)
                     if val is not None:
-                        st.session_state.temp_user_data = val
-                        st.session_state.login_step = 1
+                        # --- CÓDIGO ORIGINAL COMENTADO (2FA) ---
+                        # st.session_state.temp_user_data = val
+                        # st.session_state.login_step = 1
+                        # st.rerun()
+
+                        # --- BYPASS ACTIVO: ENTRADA DIRECTA ---
+                        st.session_state.sesion_iniciada = True
+                        st.session_state.rol_usuario = val['Rol']
+                        st.session_state.nombre_usuario = val['Nombre']
+                        st.session_state.usuario_id = val['Usuario']
                         st.rerun()
                     else: 
                         st.error("Autenticación fallida. Verifique sus credenciales.")
@@ -411,6 +420,7 @@ if not st.session_state.sesion_iniciada:
                         st.warning("Ingresa tu usuario primero para buscarte en el sistema.")
 
         elif st.session_state.login_step == 1:
+            # --- CÓDIGO ORIGINAL COMENTADO (2FA) ---
             user_val = st.session_state.temp_user_data
             st.info("🔐 Autenticación en dos pasos requerida")
             st.caption(f"Si es tu primera vez iniciando sesión, vincula esta clave secreta en **Microsoft Authenticator**: `{user_val['2FA_Secret']}`")
@@ -418,17 +428,17 @@ if not st.session_state.sesion_iniciada:
             with st.form("2fa_form"):
                 codigo_2fa = st.text_input("Ingresa el código de Microsoft Authenticator (6 dígitos):", placeholder="123456")
                 if st.form_submit_button("VERIFICAR E INICIAR SESIÓN"):
-                    totp = pyotp.TOTP(user_val['2FA_Secret'])
-                    if totp.verify(codigo_2fa):
-                        st.session_state.sesion_iniciada = True
-                        st.session_state.rol_usuario = user_val['Rol']
-                        st.session_state.nombre_usuario = user_val['Nombre']
-                        st.session_state.usuario_id = user_val['Usuario']
-                        st.session_state.login_step = 0
-                        st.session_state.temp_user_data = None
-                        st.rerun()
-                    else:
-                        st.error("Código incorrecto o expirado. Intente de nuevo.")
+                    # totp = pyotp.TOTP(user_val['2FA_Secret'])
+                    # if totp.verify(codigo_2fa):
+                    st.session_state.sesion_iniciada = True
+                    st.session_state.rol_usuario = user_val['Rol']
+                    st.session_state.nombre_usuario = user_val['Nombre']
+                    st.session_state.usuario_id = user_val['Usuario']
+                    st.session_state.login_step = 0
+                    st.session_state.temp_user_data = None
+                    st.rerun()
+                    # else:
+                    #     st.error("Código incorrecto o expirado. Intente de nuevo.")
             
             if st.button("Volver atrás"):
                 st.session_state.login_step = 0
@@ -590,8 +600,9 @@ else:
     else:
         t_adm, t_rep, t_crm = None, tabs[3], tabs[4]
 
-    # 1. ÓRDENES
+    # 1. ÓRDENES (E-COMMERCE Y MANUALES)
     with t_ped:
+        st.markdown("### 🛒 Órdenes E-Commerce (Automáticas)")
         p = df_ped[df_ped['Estado']=='Pendiente']
         if p.empty: st.success("No hay órdenes pendientes de despacho.")
         else:
@@ -617,6 +628,52 @@ else:
                         guardar_df(df_ped, ARCHIVO_PEDIDOS)
                         st.rerun()
                     st.divider()
+        
+        st.markdown("---")
+        st.markdown("### 📝 Gestión de Pedidos Manuales")
+        df_pm = cargar_csv(ARCHIVO_PEDIDOS_MANUALES, ['ID', 'Fecha', 'Cliente', 'Detalle', 'Estado'])
+        
+        c_add_pm, c_list_pm = st.columns([1, 2])
+        
+        with c_add_pm:
+            with st.form("form_pedido_manual", clear_on_submit=True):
+                st.markdown("##### Nuevo Pedido Manual")
+                cliente_pm = st.text_input("Nombre del Cliente")
+                detalle_pm = st.text_area("Detalle del Pedido (Modelos, Tallas, Notas)")
+                if st.form_submit_button("Registrar Pedido"):
+                    if cliente_pm and detalle_pm:
+                        nuevo_pm = {
+                            'ID': f"PM-{int(time.time())}",
+                            'Fecha': datetime.now().strftime("%Y-%m-%d %H:%M"),
+                            'Cliente': cliente_pm,
+                            'Detalle': detalle_pm,
+                            'Estado': 'Pendiente'
+                        }
+                        df_pm = pd.concat([df_pm, pd.DataFrame([nuevo_pm])], ignore_index=True)
+                        guardar_df(df_pm, ARCHIVO_PEDIDOS_MANUALES)
+                        st.success("Pedido manual registrado exitosamente.")
+                        time.sleep(0.5); st.rerun()
+                    else:
+                        st.error("Llene todos los campos para registrar el pedido.")
+        
+        with c_list_pm:
+            st.markdown("##### Checklist de Pedidos Pendientes")
+            pendientes_pm = df_pm[df_pm['Estado'] == 'Pendiente']
+            if pendientes_pm.empty:
+                st.info("¡Excelente! No hay pedidos manuales pendientes.")
+            else:
+                for idx_pm, row_pm in pendientes_pm.iterrows():
+                    with st.container():
+                        col_text_pm, col_btn_pm = st.columns([4, 1])
+                        col_text_pm.markdown(f"**{row_pm['Cliente']}** - {row_pm['Fecha']}<br><small>{row_pm['Detalle']}</small>", unsafe_allow_html=True)
+                        if col_btn_pm.button("✅ Entregado", key=f"btn_pm_{row_pm['ID']}"):
+                            df_pm.loc[df_pm['ID'] == row_pm['ID'], 'Estado'] = 'Entregado'
+                            guardar_df(df_pm, ARCHIVO_PEDIDOS_MANUALES)
+                            st.rerun()
+                        st.divider()
+            
+            with st.expander("📊 Ver Reporte Histórico de Pedidos Manuales"):
+                st.dataframe(df_pm, hide_index=True, use_container_width=True)
 
     # 2. TPV (PUNTO DE VENTA)
     with t_pos:
@@ -684,7 +741,6 @@ else:
                     usar_descuento = st.checkbox("🔑 Autorizar Descuento Especial Manual (Cualquier Artículo)")
                     if usar_descuento:
                         col_desc1, col_desc2 = st.columns(2)
-                        # SOLUCIÓN: min_value en 0.0 para permitir descuento libre a placer
                         precio_especial = col_desc1.number_input("Nuevo Precio Final ($)", min_value=0.0, value=float(sel['Precio_Venta']), max_value=float(sel['Precio_Venta']), step=50.0)
                         codigo_auth = col_desc2.text_input("Código de Autorización (2FA de Admin)", type="password")
 
@@ -695,7 +751,10 @@ else:
                         if usar_descuento and precio_especial < sel['Precio_Venta']:
                             df_usrs = cargar_usuarios()
                             admin_secrets = df_usrs[df_usrs['Rol'] == 'Administrador']['2FA_Secret'].tolist()
-                            autorizado = any(pyotp.TOTP(secret).verify(codigo_auth) for secret in admin_secrets)
+                            
+                            # --- VALIDACIÓN 2FA COMENTADA (BYPASS TEMPORAL) ---
+                            # autorizado = any(pyotp.TOTP(secret).verify(codigo_auth) for secret in admin_secrets)
+                            autorizado = True # Bypass forzado para que siempre autorice
                             
                             if not autorizado:
                                 st.error("Código de autorización 2FA inválido. Solicite el código a un Administrador.")
@@ -866,19 +925,37 @@ else:
                     
                     with c_eliminar:
                         if not df_cup.empty:
-                            with st.form("form_eliminar_cupones"):
-                                st.markdown("##### Eliminar Cupón")
-                                cupon_a_eliminar = st.selectbox("Seleccione el cupón a eliminar:", df_cup['Codigo'].tolist())
-                                if st.form_submit_button("🗑️ Eliminar Cupón"):
-                                    df_cup = df_cup[df_cup['Codigo'] != cupon_a_eliminar]
+                            st.markdown("##### Gestionar Cupón")
+                            cupon_sel = st.selectbox("Seleccione el cupón a gestionar:", df_cup['Codigo'].tolist(), key="sel_cup")
+                            
+                            estado_actual = df_cup.loc[df_cup['Codigo'] == cupon_sel, 'Activo'].iloc[0]
+                            
+                            c_btn1, c_btn2 = st.columns(2)
+                            with c_btn1:
+                                if estado_actual == 'Si':
+                                    if st.button("⏸️ Pausar", use_container_width=True):
+                                        df_cup.loc[df_cup['Codigo'] == cupon_sel, 'Activo'] = 'No'
+                                        guardar_df(df_cup, ARCHIVO_CUPONES)
+                                        st.success(f"Cupón {cupon_sel} pausado.")
+                                        time.sleep(0.5); st.rerun()
+                                else:
+                                    if st.button("▶️ Reactivar", use_container_width=True):
+                                        df_cup.loc[df_cup['Codigo'] == cupon_sel, 'Activo'] = 'Si'
+                                        guardar_df(df_cup, ARCHIVO_CUPONES)
+                                        st.success(f"Cupón {cupon_sel} reactivado.")
+                                        time.sleep(0.5); st.rerun()
+                                        
+                            with c_btn2:
+                                if st.button("🗑️ Eliminar", use_container_width=True):
+                                    df_cup = df_cup[df_cup['Codigo'] != cupon_sel]
                                     guardar_df(df_cup, ARCHIVO_CUPONES)
-                                    st.success(f"Cupón {cupon_a_eliminar} eliminado exitosamente.")
-                                    time.sleep(1); st.rerun()
+                                    st.success(f"Cupón {cupon_sel} eliminado.")
+                                    time.sleep(0.5); st.rerun()
                         else:
-                            st.info("No hay cupones activos para eliminar.")
+                            st.info("No hay cupones registrados.")
 
                     if not df_cup.empty:
-                        st.markdown("##### Lista de Cupones Activos")
+                        st.markdown("##### Lista de Cupones Registrados")
                         st.dataframe(df_cup, hide_index=True, use_container_width=True)
 
     # 3. INVENTARIO
