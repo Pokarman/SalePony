@@ -119,7 +119,7 @@ st.markdown("""
 ARCHIVO_INVENTARIO = 'tr_inventario.csv'
 ARCHIVO_HISTORIAL = 'tr_historial.csv'
 ARCHIVO_PEDIDOS = 'tr_pedidos.csv'
-ARCHIVO_PEDIDOS_MANUALES = 'tr_pedidos_manuales.csv' # NUEVO ARCHIVO
+ARCHIVO_PEDIDOS_MANUALES = 'tr_pedidos_manuales.csv'
 ARCHIVO_USUARIOS = 'tr_usuarios.csv' 
 ARCHIVO_CONFIG_API = 'tr_config_apis.csv'
 ARCHIVO_CRM = 'tr_crm.csv' 
@@ -420,7 +420,6 @@ if not st.session_state.sesion_iniciada:
                         st.warning("Ingresa tu usuario primero para buscarte en el sistema.")
 
         elif st.session_state.login_step == 1:
-            # --- CÓDIGO ORIGINAL COMENTADO (2FA) ---
             user_val = st.session_state.temp_user_data
             st.info("🔐 Autenticación en dos pasos requerida")
             st.caption(f"Si es tu primera vez iniciando sesión, vincula esta clave secreta en **Microsoft Authenticator**: `{user_val['2FA_Secret']}`")
@@ -428,6 +427,7 @@ if not st.session_state.sesion_iniciada:
             with st.form("2fa_form"):
                 codigo_2fa = st.text_input("Ingresa el código de Microsoft Authenticator (6 dígitos):", placeholder="123456")
                 if st.form_submit_button("VERIFICAR E INICIAR SESIÓN"):
+                    # --- VALIDACIÓN 2FA COMENTADA (BYPASS TEMPORAL) ---
                     # totp = pyotp.TOTP(user_val['2FA_Secret'])
                     # if totp.verify(codigo_2fa):
                     st.session_state.sesion_iniciada = True
@@ -600,9 +600,9 @@ else:
     else:
         t_adm, t_rep, t_crm = None, tabs[3], tabs[4]
 
-    # 1. ÓRDENES (E-COMMERCE Y MANUALES)
+    # 1. ÓRDENES Y PEDIDOS MANUALES
     with t_ped:
-        st.markdown("### 🛒 Órdenes E-Commerce (Automáticas)")
+        st.markdown("### 🛒 Órdenes E-Commerce")
         p = df_ped[df_ped['Estado']=='Pendiente']
         if p.empty: st.success("No hay órdenes pendientes de despacho.")
         else:
@@ -628,52 +628,92 @@ else:
                         guardar_df(df_ped, ARCHIVO_PEDIDOS)
                         st.rerun()
                     st.divider()
-        
+
         st.markdown("---")
         st.markdown("### 📝 Gestión de Pedidos Manuales")
-        df_pm = cargar_csv(ARCHIVO_PEDIDOS_MANUALES, ['ID', 'Fecha', 'Cliente', 'Detalle', 'Estado'])
+        df_pm = cargar_csv(ARCHIVO_PEDIDOS_MANUALES, ['ID', 'Fecha', 'Cliente', 'Detalle', 'Estado', 'SKU_Relacionado'])
         
         c_add_pm, c_list_pm = st.columns([1, 2])
         
         with c_add_pm:
             with st.form("form_pedido_manual", clear_on_submit=True):
-                st.markdown("##### Nuevo Pedido Manual")
+                st.markdown("##### Nuevo Pedido")
                 cliente_pm = st.text_input("Nombre del Cliente")
-                detalle_pm = st.text_area("Detalle del Pedido (Modelos, Tallas, Notas)")
+                
+                # Vinculación opcional con inventario
+                opciones_inv = []
+                if not df_inv.empty:
+                    opciones_inv = df_inv[df_inv['Cantidad']>0].apply(lambda x: f"{x['Modelo']} (Talla: {x['Talla'] if str(x['Talla']) != '' else 'Única'}) | {x['SKU']}", axis=1).tolist()
+                item_vinculado = st.selectbox("📦 Vincular artículo (Opcional)", ["Ninguno"] + opciones_inv)
+                
+                detalle_pm = st.text_area("Detalle adicional (Notas, abonos, etc.)")
+                
                 if st.form_submit_button("Registrar Pedido"):
-                    if cliente_pm and detalle_pm:
+                    if cliente_pm and (detalle_pm or item_vinculado != "Ninguno"):
+                        sku_rel = ""
+                        det_final = detalle_pm
+                        if item_vinculado != "Ninguno":
+                            mod_talla = item_vinculado.split(" | ")[0]
+                            sku_rel = item_vinculado.split(" | ")[1]
+                            det_final = f"[VINCULADO: {mod_talla}] {detalle_pm}"
+                        
                         nuevo_pm = {
                             'ID': f"PM-{int(time.time())}",
                             'Fecha': datetime.now().strftime("%Y-%m-%d %H:%M"),
                             'Cliente': cliente_pm,
-                            'Detalle': detalle_pm,
-                            'Estado': 'Pendiente'
+                            'Detalle': det_final,
+                            'Estado': 'Pendiente',
+                            'SKU_Relacionado': sku_rel
                         }
                         df_pm = pd.concat([df_pm, pd.DataFrame([nuevo_pm])], ignore_index=True)
                         guardar_df(df_pm, ARCHIVO_PEDIDOS_MANUALES)
-                        st.success("Pedido manual registrado exitosamente.")
+                        st.success("Pedido registrado exitosamente.")
                         time.sleep(0.5); st.rerun()
                     else:
-                        st.error("Llene todos los campos para registrar el pedido.")
+                        st.error("Llene el detalle o seleccione un artículo para registrar el pedido.")
         
         with c_list_pm:
-            st.markdown("##### Checklist de Pedidos Pendientes")
-            pendientes_pm = df_pm[df_pm['Estado'] == 'Pendiente']
-            if pendientes_pm.empty:
-                st.info("¡Excelente! No hay pedidos manuales pendientes.")
+            st.markdown("##### 📋 Tabla de Seguimiento")
+            if not df_pm.empty:
+                df_edit = df_pm.copy()
+                df_edit['Entregado'] = df_edit['Estado'] == 'Entregado'
+                
+                columnas_mostrar = ['Entregado', 'Cliente', 'Detalle', 'SKU_Relacionado', 'Fecha']
+                
+                edited_df = st.data_editor(
+                    df_edit[columnas_mostrar],
+                    column_config={
+                        "Entregado": st.column_config.CheckboxColumn("✅ Entregado", default=False),
+                    },
+                    disabled=["Cliente", "Detalle", "SKU_Relacionado", "Fecha"],
+                    hide_index=True,
+                    use_container_width=True,
+                    key="tabla_pedidos_manuales"
+                )
+                
+                if not edited_df['Entregado'].equals(df_edit['Entregado']):
+                    df_pm['Estado'] = edited_df['Entregado'].apply(lambda x: 'Entregado' if x else 'Pendiente')
+                    guardar_df(df_pm, ARCHIVO_PEDIDOS_MANUALES)
+                    st.rerun()
+                    
+                st.markdown("##### 🗑️ Eliminar Pedido Específico")
+                c_del1, c_del2 = st.columns([3, 1])
+                pedido_del = c_del1.selectbox("Seleccione el pedido:", df_pm['ID'].tolist(), format_func=lambda x: f"{x} - {df_pm[df_pm['ID']==x]['Cliente'].values[0]} ({df_pm[df_pm['ID']==x]['Estado'].values[0]})", label_visibility="collapsed")
+                if c_del2.button("Eliminar", use_container_width=True):
+                    df_pm = df_pm[df_pm['ID'] != pedido_del]
+                    guardar_df(df_pm, ARCHIVO_PEDIDOS_MANUALES)
+                    st.success("Pedido eliminado.")
+                    time.sleep(0.5); st.rerun()
             else:
-                for idx_pm, row_pm in pendientes_pm.iterrows():
-                    with st.container():
-                        col_text_pm, col_btn_pm = st.columns([4, 1])
-                        col_text_pm.markdown(f"**{row_pm['Cliente']}** - {row_pm['Fecha']}<br><small>{row_pm['Detalle']}</small>", unsafe_allow_html=True)
-                        if col_btn_pm.button("✅ Entregado", key=f"btn_pm_{row_pm['ID']}"):
-                            df_pm.loc[df_pm['ID'] == row_pm['ID'], 'Estado'] = 'Entregado'
-                            guardar_df(df_pm, ARCHIVO_PEDIDOS_MANUALES)
-                            st.rerun()
-                        st.divider()
+                st.info("No hay pedidos manuales registrados.")
             
-            with st.expander("📊 Ver Reporte Histórico de Pedidos Manuales"):
+            with st.expander("📊 Ver Reporte Histórico y Limpieza"):
                 st.dataframe(df_pm, hide_index=True, use_container_width=True)
+                if not df_pm.empty:
+                    if st.button("🚨 Limpiar todo el historial de pedidos", type="primary"):
+                        if os.path.exists(ARCHIVO_PEDIDOS_MANUALES): os.remove(ARCHIVO_PEDIDOS_MANUALES)
+                        st.cache_data.clear()
+                        st.rerun()
 
     # 2. TPV (PUNTO DE VENTA)
     with t_pos:
